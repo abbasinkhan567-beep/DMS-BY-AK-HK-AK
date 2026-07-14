@@ -19,13 +19,16 @@ No OneDrive. No Google Drive. No tunnel.
 3. Updates URL auto: same GitHub repo  
 
 ### B) Office PC
-1. Clone:
+1. Install Node.js LTS + Git  
+2. Clone:
    ```bash
    git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
+   cd DMS-BY-AK-HK-AK
    ```
-2. `INSTALL-OFFICE.bat` → Desktop icon  
-3. Settings → Sync → PC name `Office` → **same GitHub token** → **Sync Now**  
-4. Settings → Updates → Check / Apply when new software out  
+3. **`INSTALL-OFFICE.bat`** double-click  
+4. Agar nahi chale → folder mein **`FIX-OFFICE.bat`** double-click (yeh fix + start karega)  
+5. Login → Settings → Sync → PC name `Office` → same token → **Sync Now**  
+6. Settings → Updates → Check / Apply
 
 ## Daily
 

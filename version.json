@@ -1,6 +1,6 @@
 {
-  "version": "1.5.0",
+  "version": "1.5.1",
   "name": "Pepsi Distribution",
-  "notes": "Merge sync — both PCs keep all entries, auto sync when online",
-  "updatedAt": "2026-07-14"
+  "notes": "FIX-OFFICE.bat for clone/start failures on office PC",
+  "updatedAt": "2026-07-15"
 }
