@@ -1,0 +1,25 @@
+PEPSI DISTRIBUTION — START HERE
+================================
+
+NEED: Node.js 22+  (https://nodejs.org)   and   Git (https://git-scm.com)
+
+DEVELOPER PC (this folder: F:\pepsi project)
+--------------------------------------------
+1) Double-click  START.bat
+2) Login: admin123
+3) Settings password: settings123
+4) Edit code in VS Code → test with START.bat
+5) Push updates:  PUBLISH.bat
+6) Make office copy:  MAKE-OFFICE.bat  → creates F:\Pepsi-Office
+
+OFFICE PC
+---------
+1) Use folder F:\Pepsi-Office  (from MAKE-OFFICE / USB)
+   OR:  git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
+2) Double-click  START.bat
+3) Login admin123 → Settings → Sync (PC name Office + GitHub token) → Sync Now
+4) New software: Settings → Updates → Apply
+
+GITHUB
+------
+https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK

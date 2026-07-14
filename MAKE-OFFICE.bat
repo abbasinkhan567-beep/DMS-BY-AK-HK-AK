@@ -1,0 +1,91 @@
+@echo off
+title Pepsi - Make Office Folder
+color 0B
+cd /d "%~dp0"
+
+echo.
+echo  ========================================
+echo   MAKE OFFICE PACKAGE
+echo  ========================================
+echo  Creates: F:\Pepsi-Office
+echo  Office user only needs START.bat
+echo.
+
+where node >nul 2>nul
+if errorlevel 1 (
+  echo  [ERROR] Node.js required on this PC first.
+  pause
+  exit /b 1
+)
+
+if not exist "node_modules\" (
+  echo  Installing packages on Developer...
+  call npm install
+  if errorlevel 1 ( pause & exit /b 1 )
+)
+
+echo  Building app for Office...
+call npm run build
+if errorlevel 1 (
+  echo  [ERROR] Build failed — Office package not created.
+  pause
+  exit /b 1
+)
+
+set DEST=F:\Pepsi-Office
+if not exist "%DEST%" mkdir "%DEST%"
+
+echo  Copying files to %DEST% ...
+REM Fresh copy of app (keep existing Office data if any)
+if exist "%DEST%\data\pepsi.db" (
+  if not exist "%TEMP%\pepsi-office-db-keep" mkdir "%TEMP%\pepsi-office-db-keep"
+  copy /Y "%DEST%\data\pepsi.db" "%TEMP%\pepsi-office-db-keep\pepsi.db" >nul
+)
+
+robocopy "%CD%" "%DEST%" /E /XD node_modules .git .pepsi-cloud-sync data\backups .cursor /XF PUBLISH.bat MAKE-OFFICE.bat START-HERE.txt /NFL /NDL /NJH /NJS /nc /ns /np
+if %ERRORLEVEL% GEQ 8 (
+  echo  [ERROR] Copy failed.
+  pause
+  exit /b 1
+)
+
+REM Ensure .next is present (built above)
+if not exist "%DEST%\.next\BUILD_ID" (
+  echo  [ERROR] Build output missing in Office folder.
+  pause
+  exit /b 1
+)
+
+if not exist "%DEST%\data" mkdir "%DEST%\data"
+if exist "%TEMP%\pepsi-office-db-keep\pepsi.db" (
+  copy /Y "%TEMP%\pepsi-office-db-keep\pepsi.db" "%DEST%\data\pepsi.db" >nul
+)
+
+(
+echo PEPSI OFFICE PC
+echo ================
+echo.
+echo 1^) Install Node.js 22+ from https://nodejs.org
+echo 2^) Double-click START.bat
+echo 3^) Login: admin123
+echo 4^) Settings ^(password settings123^) -^> Sync
+echo    PC name: Office
+echo    Paste GitHub token -^> Save -^> Sync Now
+echo 5^) New software: Settings -^> Updates -^> Apply
+echo.
+echo Do NOT use PUBLISH here. That is only on Developer PC.
+) > "%DEST%\README-OFFICE.txt"
+
+REM Office should not ship developer publish tooling
+if exist "%DEST%\PUBLISH.bat" del /f /q "%DEST%\PUBLISH.bat"
+if exist "%DEST%\MAKE-OFFICE.bat" del /f /q "%DEST%\MAKE-OFFICE.bat"
+if exist "%DEST%\START-HERE.txt" del /f /q "%DEST%\START-HERE.txt"
+
+echo.
+echo  ========================================
+echo   DONE: F:\Pepsi-Office
+echo  ========================================
+echo  Office: open that folder -^> START.bat
+echo  ^(First run will npm install — needs internet once^)
+echo.
+pause

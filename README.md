@@ -1,43 +1,38 @@
 # Pepsi Distribution Management System
 
-Simple management software for a small Pepsi distribution company.
+**Developer folder:** this project  
+**Office folder:** run `MAKE-OFFICE.bat` → creates `F:\Pepsi-Office`
 
-## Features
+## Quick start
 
-- **Dashboard** — today's sales/purchases, stock value, low stock alerts, customer pending
-- **Products / Stock** — Pepsi, Mirinda, 7UP and more with purchase/sale price and stock
-- **Purchases** — buy from company; stock increases automatically
-- **Sales** — sell to customers, assign salesman, cash/credit/partial payment
-- **Customers** — shop records + credit balance
-- **Salesmen** — sales team data (name, phone, area, salary)
-- **Paper / Old Records** — enter historical forms by date without changing current stock
-- **Backup** — daily local backups (never auto-deleted) + Day One protected copy
-- **Sync** — merge sync via GitHub: both PCs can enter data at the same time, no overwrite
-- **Updates** — pull new versions from this GitHub repo
+1. Install **Node.js 22+** — https://nodejs.org  
+2. Double-click **`START.bat`**  
+3. Login: `admin123` · Settings: `settings123`
 
-## Run (developer)
+See **`START-HERE.txt`** for Developer / Office / Sync / Updates.
 
-**Node.js 22+ / 24 OK** (built-in SQLite — no Visual Studio).
+## Developer
+
+| File | What |
+|------|------|
+| `START.bat` | Run the app |
+| `PUBLISH.bat` | Push code to GitHub |
+| `MAKE-OFFICE.bat` | Build `F:\Pepsi-Office` package |
+| `BACKUP-NOW.bat` | Manual DB backup |
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open: [http://localhost:3000](http://localhost:3000)
+## Office
 
-## GitHub
+- Copy `F:\Pepsi-Office` or clone the repo  
+- Double-click **`START.bat`**  
+- Settings → Sync + Updates  
 
-https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK
+Repo: https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK
 
-## Office install
+## Features
 
-```bash
-git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
-```
-
-1. Run `INSTALL-OFFICE.bat`
-2. Use Desktop **Pepsi Distribution** icon
-3. Second PC: see **[OFFICE-ONLINE.md](OFFICE-ONLINE.md)** — Updates URL + Sync
-
-Data file: `data/pepsi.db`
+Dashboard, Products, Purchases, Sales, Customers, Salesmen, Paper/Old Records, Expenses, Ledgers, Backup, **merge Sync** (both PCs keep entries), Updates via GitHub.

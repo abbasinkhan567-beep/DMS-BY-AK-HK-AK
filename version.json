@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "name": "Pepsi Distribution",
-  "notes": "Node 24+ ready — built-in SQLite, no Visual Studio / better-sqlite3",
+  "notes": "Clean Dev + Office one-click START folders",
   "updatedAt": "2026-07-15"
 }

@@ -1,34 +1,31 @@
 @echo off
-title Publish Update to Office PCs
+title Pepsi - Publish to GitHub
 color 0A
 cd /d "%~dp0"
 
 echo.
 echo  ========================================
-echo   PUBLISH UPDATE (Developer PC)
+echo   PUBLISH (Developer only)
 echo  ========================================
-echo.
-echo  This will push your changes to GitHub.
-echo  Office PCs can pull them via Settings -^> Check Updates.
+echo  Pushes code to GitHub.
+echo  Office: Settings -^> Updates -^> Apply
 echo.
 
 where git >nul 2>nul
 if errorlevel 1 (
-  echo  [ERROR] Git is not installed. Install from https://git-scm.com
+  echo  [ERROR] Install Git from https://git-scm.com
   pause
   exit /b 1
 )
 
 if not exist ".git" (
-  echo  Git init...
   git init
   git add .
-  git commit -m "Initial Pepsi Distribution"
+  git -c user.email="abbasinkhan567@gmail.com" -c user.name="Abbasin Khan Bazai" commit -m "Initial Pepsi Distribution"
 )
 
 git remote get-url origin >nul 2>nul
 if errorlevel 1 (
-  echo  Setting official GitHub remote...
   git remote add origin https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
   git branch -M main
 )
@@ -36,28 +33,24 @@ if errorlevel 1 (
 set /p MSG="Update message (optional): "
 if "%MSG%"=="" set MSG=Update %DATE% %TIME%
 
-REM bump patch version lightly via powershell
 powershell -NoProfile -Command ^
   "$v = Get-Content version.json -Raw | ConvertFrom-Json; $parts = $v.version.Split('.'); $parts[2] = [int]$parts[2] + 1; $v.version = $parts -join '.'; $v.updatedAt = (Get-Date).ToString('yyyy-MM-dd HH:mm'); $v | ConvertTo-Json | Set-Content version.json -Encoding UTF8"
 
 git add -A
 git status
-git commit -m "%MSG%"
+git -c user.email="abbasinkhan567@gmail.com" -c user.name="Abbasin Khan Bazai" commit -m "%MSG%"
 if errorlevel 1 (
-  echo  Nothing to commit / already committed.
+  echo  Nothing new to commit.
 )
 
 git push origin main
 if errorlevel 1 (
-  echo  [ERROR] Push failed. Check GitHub login / remote.
+  echo  [ERROR] Push failed — check GitHub login.
   pause
   exit /b 1
 )
 
 echo.
-echo  ========================================
-echo   UPDATE PUBLISHED
-echo  ========================================
-echo  On office PC: Settings -^> Updates -^> Check Updates
+echo  Published. Office: Updates -^> Check / Apply
 echo.
 pause
