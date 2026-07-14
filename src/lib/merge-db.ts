@@ -1,4 +1,3 @@
-import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import {
@@ -8,6 +7,7 @@ import {
   newSyncId,
 } from "@/lib/sync-ids";
 import { getDb } from "@/lib/db";
+import { openDatabase, type PepsiDb } from "@/lib/sqlite";
 
 export type MergeStats = {
   added: number;
@@ -21,13 +21,13 @@ function newer(a?: string | null, b?: string | null) {
   return aa > bb;
 }
 
-function cols(db: Database.Database, table: string) {
+function cols(db: PepsiDb, table: string) {
   return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
     (c) => c.name
   );
 }
 
-function captureOpenings(db: Database.Database) {
+function captureOpenings(db: PepsiDb) {
   const map = new Map<string, number>();
   const rows = db.prepare("SELECT id, sync_id, stock FROM products").all() as Array<{
     id: number;
@@ -41,7 +41,7 @@ function captureOpenings(db: Database.Database) {
   return map;
 }
 
-function idBySync(db: Database.Database, table: string, syncId: string | null | undefined) {
+function idBySync(db: PepsiDb, table: string, syncId: string | null | undefined) {
   if (!syncId) return null;
   const row = db.prepare(`SELECT id FROM ${table} WHERE sync_id = ?`).get(syncId) as
     | { id: number }
@@ -49,7 +49,7 @@ function idBySync(db: Database.Database, table: string, syncId: string | null | 
   return row?.id ?? null;
 }
 
-function syncOf(db: Database.Database, table: string, id: number | null | undefined) {
+function syncOf(db: PepsiDb, table: string, id: number | null | undefined) {
   if (!id) return null;
   const row = db.prepare(`SELECT sync_id FROM ${table} WHERE id = ?`).get(id) as
     | { sync_id: string }
@@ -58,8 +58,8 @@ function syncOf(db: Database.Database, table: string, id: number | null | undefi
 }
 
 function remapFk(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   table: string,
   remoteId: number | null | undefined
 ) {
@@ -76,7 +76,7 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
 
   const tmp = path.join(path.dirname(remoteDbPath), `merge-remote-${Date.now()}.db`);
   fs.copyFileSync(remoteDbPath, tmp);
-  const remote = new Database(tmp);
+  const remote = openDatabase(tmp);
   remote.pragma("foreign_keys = OFF");
   ensureSyncSchema(remote);
 
@@ -268,8 +268,8 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
 }
 
 function mergeMasters(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   table: string,
   fields: string[],
   onStats: (s: { added: number; updated: number }) => number
@@ -328,8 +328,8 @@ function mergeMasters(
 }
 
 function mergePurchases(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   onUpdated: (n: number) => void
 ) {
   let added = 0;
@@ -440,8 +440,8 @@ function mergePurchases(
 }
 
 function mergeSales(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   onUpdated: (n: number) => void
 ) {
   let added = 0;
@@ -569,8 +569,8 @@ function mergeSales(
 }
 
 function mergeSimpleTx(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   table: string,
   fields: string[],
   extra: (row: Record<string, unknown>) => Record<string, unknown>,
@@ -630,8 +630,8 @@ function mergeSimpleTx(
 }
 
 function mergePaperDays(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   onUpdated: (n: number) => void
 ) {
   let added = 0;
@@ -686,8 +686,8 @@ function mergePaperDays(
 }
 
 function mergeCompany(
-  local: Database.Database,
-  remote: Database.Database,
+  local: PepsiDb,
+  remote: PepsiDb,
   onUpdated: (n: number) => void
 ) {
   const remoteRow = remote.prepare("SELECT * FROM company_info WHERE id = 1").get() as

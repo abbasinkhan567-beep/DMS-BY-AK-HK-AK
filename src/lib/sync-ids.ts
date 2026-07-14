@@ -1,5 +1,5 @@
-import type Database from "better-sqlite3";
 import crypto from "crypto";
+import type { PepsiDb } from "@/lib/sqlite";
 
 const SYNC_TABLES = [
   "products",
@@ -19,20 +19,20 @@ const SYNC_TABLES = [
   "company_info",
 ] as const;
 
-function tableExists(db: Database.Database, table: string) {
+function tableExists(db: PepsiDb, table: string) {
   const row = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
     .get(table) as { name: string } | undefined;
   return Boolean(row);
 }
 
-function columnExists(db: Database.Database, table: string, column: string) {
+function columnExists(db: PepsiDb, table: string, column: string) {
   if (!tableExists(db, table)) return false;
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   return cols.some((c) => c.name === column);
 }
 
-function addColumn(db: Database.Database, table: string, column: string, def: string) {
+function addColumn(db: PepsiDb, table: string, column: string, def: string) {
   if (!tableExists(db, table)) return;
   if (!columnExists(db, table, column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
@@ -47,7 +47,7 @@ export function stableSyncId(parts: string[]) {
   return crypto.createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 32);
 }
 
-function deviceSeed(db: Database.Database) {
+function deviceSeed(db: PepsiDb) {
   const row = db.prepare("SELECT value FROM app_settings WHERE key = 'device_id'").get() as
     | { value: string }
     | undefined;
@@ -61,7 +61,7 @@ function deviceSeed(db: Database.Database) {
 }
 
 /** Add sync_id / updated_at and backfill so merge works across PCs. */
-export function ensureSyncSchema(db: Database.Database) {
+export function ensureSyncSchema(db: PepsiDb) {
   for (const table of SYNC_TABLES) {
     addColumn(db, table, "sync_id", "TEXT");
     addColumn(db, table, "updated_at", "TEXT");
@@ -81,7 +81,7 @@ export function ensureSyncSchema(db: Database.Database) {
   backfillSyncIds(db);
 }
 
-function touchUpdated(db: Database.Database, table: string) {
+function touchUpdated(db: PepsiDb, table: string) {
   if (!tableExists(db, table) || !columnExists(db, table, "updated_at")) return;
   db.prepare(
     `UPDATE ${table} SET updated_at = COALESCE(updated_at, created_at, datetime('now','localtime'))
@@ -89,7 +89,7 @@ function touchUpdated(db: Database.Database, table: string) {
   ).run();
 }
 
-function backfillSyncIds(db: Database.Database) {
+function backfillSyncIds(db: PepsiDb) {
   const seed = deviceSeed(db);
 
   if (tableExists(db, "products")) {
@@ -235,7 +235,7 @@ function backfillSyncIds(db: Database.Database) {
   }
 }
 
-export function productMovementNet(db: Database.Database, productId: number): number {
+export function productMovementNet(db: PepsiDb, productId: number): number {
   const purch = (
     db
       .prepare(
@@ -269,7 +269,7 @@ export function productMovementNet(db: Database.Database, productId: number): nu
   return Number(purch) - Number(sold) + Number(adj);
 }
 
-export function recalculateStockAndBalances(db: Database.Database) {
+export function recalculateStockAndBalances(db: PepsiDb) {
   const products = db.prepare("SELECT id, stock FROM products").all() as Array<{
     id: number;
     stock: number;

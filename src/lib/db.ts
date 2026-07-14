@@ -1,8 +1,8 @@
-import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { ensureSyncSchema } from "@/lib/sync-ids";
+import { openDatabase, type PepsiDb } from "@/lib/sqlite";
 
 const dataDir = path.join(process.cwd(), "data");
 if (!fs.existsSync(dataDir)) {
@@ -11,20 +11,20 @@ if (!fs.existsSync(dataDir)) {
 
 export const dbPath = path.join(dataDir, "pepsi.db");
 
-const globalForDb = globalThis as unknown as { __pepsiDb?: Database.Database };
+const globalForDb = globalThis as unknown as { __pepsiDb?: PepsiDb };
 
-function columnExists(db: Database.Database, table: string, column: string) {
+function columnExists(db: PepsiDb, table: string, column: string) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   return cols.some((c) => c.name === column);
 }
 
-function addColumn(db: Database.Database, table: string, column: string, def: string) {
+function addColumn(db: PepsiDb, table: string, column: string, def: string) {
   if (!columnExists(db, table, column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
   }
 }
 
-function ensureSchema(db: Database.Database) {
+function ensureSchema(db: PepsiDb) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -308,11 +308,10 @@ function ensureSchema(db: Database.Database) {
 }
 
 function createDb() {
-  const db = new Database(dbPath);
+  const db = openDatabase(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   ensureSchema(db);
-  (db as Database.Database & { __schemaOk?: boolean }).__schemaOk = true;
   return db;
 }
 
@@ -326,7 +325,6 @@ export function getDb() {
   } else {
     // Always re-run lightweight migrations so new columns/tables appear after code updates
     ensureSchema(globalForDb.__pepsiDb);
-    (globalForDb.__pepsiDb as Database.Database & { __schemaOk?: boolean }).__schemaOk = true;
   }
   return globalForDb.__pepsiDb;
 }

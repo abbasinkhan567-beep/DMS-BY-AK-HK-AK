@@ -17,6 +17,8 @@ Simple management software for a small Pepsi distribution company.
 
 ## Run (developer)
 
+**Node.js 22+ / 24 OK** (built-in SQLite — no Visual Studio).
+
 ```bash
 npm install
 npm run dev

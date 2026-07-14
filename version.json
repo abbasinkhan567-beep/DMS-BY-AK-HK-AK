@@ -1,6 +1,6 @@
 {
-  "version": "1.5.2",
+  "version": "1.6.0",
   "name": "Pepsi Distribution",
-  "notes": "Office: require Node 20 LTS; block Node 24; avoid OneDrive",
+  "notes": "Node 24+ ready — built-in SQLite, no Visual Studio / better-sqlite3",
   "updatedAt": "2026-07-15"
 }
