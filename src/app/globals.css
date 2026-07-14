@@ -1,0 +1,217 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme="classic"] {
+  --font-display: "Segoe UI", "Trebuchet MS", sans-serif;
+  --font-body: "Segoe UI", system-ui, sans-serif;
+
+  --brand-50: #edf8f8;
+  --brand-100: #d5f0f0;
+  --brand-200: #a8dede;
+  --brand-300: #6bc4c4;
+  --brand-400: #3aa8a8;
+  --brand-500: #1f8f8f;
+  --brand-600: #0f766e;
+  --brand-700: #0d5f5c;
+  --brand-800: #0a4a48;
+  --brand-900: #083b3a;
+
+  --accent: #e11d48;
+  --sidebar: #0f766e;
+  --sidebar-deep: #0d5f5c;
+
+  --surface: #f3f5f8;
+  --surface-card: #ffffff;
+  --surface-muted: #f8fafc;
+  --ink: #1e293b;
+  --muted: #64748b;
+  --edge: #e2e8f0;
+  --header: rgba(243, 245, 248, 0.9);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
+  --shadow-soft: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="pepsi"] {
+  --brand-50: #eef5fc;
+  --brand-100: #d6e8f8;
+  --brand-200: #a9cef0;
+  --brand-300: #6eabe3;
+  --brand-400: #3a8ad4;
+  --brand-500: #1a6fbf;
+  --brand-600: #004b93;
+  --brand-700: #003a73;
+  --brand-800: #002b56;
+  --brand-900: #001f3f;
+
+  --accent: #e32934;
+  --sidebar: #004b93;
+  --sidebar-deep: #003366;
+
+  --surface: #f4f7fb;
+  --surface-card: #ffffff;
+  --surface-muted: #f8fafc;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --edge: #dbe4ef;
+  --header: rgba(244, 247, 251, 0.92);
+  --shadow-card: 0 1px 3px rgba(0, 75, 147, 0.06), 0 8px 24px rgba(0, 75, 147, 0.06);
+  --shadow-soft: 0 2px 12px rgba(0, 75, 147, 0.08);
+}
+
+[data-theme="dark"] {
+  --brand-50: #0f2a2a;
+  --brand-100: #123636;
+  --brand-200: #1a4d4d;
+  --brand-300: #2a6b6b;
+  --brand-400: #3aa8a8;
+  --brand-500: #2dd4bf;
+  --brand-600: #14b8a6;
+  --brand-700: #0d9488;
+  --brand-800: #0f766e;
+  --brand-900: #115e59;
+
+  --accent: #fb7185;
+  --sidebar: #0b1220;
+  --sidebar-deep: #060a12;
+
+  --surface: #0b1220;
+  --surface-card: #151d2e;
+  --surface-muted: #1a2336;
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+  --edge: #243044;
+  --header: rgba(11, 18, 32, 0.92);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl;
+    background: var(--surface-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .status-pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
+
+  .credits-watermark {
+    @apply pointer-events-none select-none opacity-90;
+  }
+
+  .text-ink {
+    color: var(--ink);
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+
+  .bg-surface-card {
+    background-color: var(--surface-card);
+  }
+
+  .bg-surface-muted {
+    background-color: var(--surface-muted);
+  }
+
+  .border-edge {
+    border-color: var(--edge);
+  }
+
+  .pepsi-stripe {
+    background: linear-gradient(90deg, var(--brand-600) 0%, var(--brand-600) 55%, var(--accent) 55%, var(--accent) 100%);
+  }
+}
+
+/* Soft remaps so existing slate/white utilities follow the active theme */
+[data-theme="dark"] .bg-white,
+[data-theme="pepsi"] .bg-white {
+  background-color: var(--surface-card);
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100,
+[data-theme="dark"] .hover\:bg-slate-50:hover,
+[data-theme="dark"] .hover\:bg-slate-100:hover {
+  background-color: var(--surface-muted) !important;
+}
+
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-900 {
+  color: var(--ink) !important;
+}
+
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] .text-slate-400,
+[data-theme="dark"] .text-slate-600 {
+  color: var(--muted) !important;
+}
+
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-200\/70 {
+  border-color: var(--edge) !important;
+}
+
+[data-theme="dark"] .shadow-soft,
+[data-theme="dark"] .shadow-card {
+  box-shadow: var(--shadow-soft);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: var(--surface-muted);
+  border-color: var(--edge);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+[data-theme="dark"] .bg-rose-50,
+[data-theme="dark"] .bg-rose-50\/60 {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+}
+[data-theme="dark"] .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+[data-theme="dark"] .bg-orange-50 {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+}
+[data-theme="dark"] .bg-sky-50 {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+}
+[data-theme="dark"] .bg-brand-50 {
+  background-color: var(--brand-50) !important;
+}
+
+[data-theme="pepsi"] aside.sidebar-shell {
+  background: linear-gradient(180deg, var(--sidebar) 0%, var(--sidebar-deep) 100%);
+}
