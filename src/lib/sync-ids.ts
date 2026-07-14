@@ -1,4 +1,4 @@
-import crypto from "crypto";
+﻿import crypto from "crypto";
 import type { PepsiDb } from "@/lib/sqlite";
 
 const SYNC_TABLES = [
@@ -74,7 +74,7 @@ export function ensureSyncSchema(db: PepsiDb) {
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_sync_id ON ${table}(sync_id) WHERE sync_id IS NOT NULL AND sync_id != ''`
       );
     } catch {
-      /* duplicates — backfill uses deterministic ids; ignore index failures */
+      /* duplicates â€” backfill uses deterministic ids; ignore index failures */
     }
   }
 
@@ -83,10 +83,20 @@ export function ensureSyncSchema(db: PepsiDb) {
 
 function touchUpdated(db: PepsiDb, table: string) {
   if (!tableExists(db, table) || !columnExists(db, table, "updated_at")) return;
+  const expr = columnExists(db, table, "created_at")
+    ? "COALESCE(updated_at, created_at, datetime('now','localtime'))"
+    : "COALESCE(updated_at, datetime('now','localtime'))";
   db.prepare(
-    `UPDATE ${table} SET updated_at = COALESCE(updated_at, created_at, datetime('now','localtime'))
+    `UPDATE ${table} SET updated_at = ${expr}
      WHERE updated_at IS NULL OR updated_at = ''`
   ).run();
+}
+
+function updatedAtSql(db: PepsiDb, table: string) {
+  if (columnExists(db, table, "created_at")) {
+    return "COALESCE(updated_at, created_at, datetime('now','localtime'))";
+  }
+  return "COALESCE(updated_at, datetime('now','localtime'))";
 }
 
 function backfillSyncIds(db: PepsiDb) {
@@ -99,7 +109,9 @@ function backfillSyncIds(db: PepsiDb) {
          WHERE sync_id IS NULL OR sync_id = ''`
       )
       .all() as Array<{ id: number; name: string; size: string; location: string }>;
-    const upd = db.prepare("UPDATE products SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?");
+    const upd = db.prepare(
+      `UPDATE products SET sync_id = ?, updated_at = ${updatedAtSql(db, "products")} WHERE id = ?`
+    );
     for (const r of rows) {
       try {
         upd.run(stableSyncId(["product", r.name.trim().toLowerCase(), r.size.trim().toLowerCase(), r.location]), r.id);
@@ -116,7 +128,9 @@ function backfillSyncIds(db: PepsiDb) {
          WHERE sync_id IS NULL OR sync_id = ''`
       )
       .all() as Array<{ id: number; name: string; phone: string; shop_name: string }>;
-    const upd = db.prepare("UPDATE customers SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?");
+    const upd = db.prepare(
+      `UPDATE customers SET sync_id = ?, updated_at = ${updatedAtSql(db, "customers")} WHERE id = ?`
+    );
     for (const r of rows) {
       upd.run(
         stableSyncId(["customer", r.name.trim().toLowerCase(), r.phone.trim(), r.shop_name.trim().toLowerCase()]),
@@ -131,7 +145,9 @@ function backfillSyncIds(db: PepsiDb) {
         `SELECT id, name, COALESCE(phone,'') as phone FROM salesmen WHERE sync_id IS NULL OR sync_id = ''`
       )
       .all() as Array<{ id: number; name: string; phone: string }>;
-    const upd = db.prepare("UPDATE salesmen SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?");
+    const upd = db.prepare(
+      `UPDATE salesmen SET sync_id = ?, updated_at = ${updatedAtSql(db, "salesmen")} WHERE id = ?`
+    );
     for (const r of rows) {
       upd.run(stableSyncId(["salesman", r.name.trim().toLowerCase(), r.phone.trim()]), r.id);
     }
@@ -141,7 +157,9 @@ function backfillSyncIds(db: PepsiDb) {
     const rows = db
       .prepare(`SELECT id, name FROM floors WHERE sync_id IS NULL OR sync_id = ''`)
       .all() as Array<{ id: number; name: string }>;
-    const upd = db.prepare("UPDATE floors SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?");
+    const upd = db.prepare(
+      `UPDATE floors SET sync_id = ?, updated_at = ${updatedAtSql(db, "floors")} WHERE id = ?`
+    );
     for (const r of rows) {
       upd.run(stableSyncId(["floor", r.name.trim().toLowerCase()]), r.id);
     }
@@ -153,7 +171,9 @@ function backfillSyncIds(db: PepsiDb) {
         `SELECT id, name, account_type FROM accounts WHERE sync_id IS NULL OR sync_id = ''`
       )
       .all() as Array<{ id: number; name: string; account_type: string }>;
-    const upd = db.prepare("UPDATE accounts SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?");
+    const upd = db.prepare(
+      `UPDATE accounts SET sync_id = ?, updated_at = ${updatedAtSql(db, "accounts")} WHERE id = ?`
+    );
     for (const r of rows) {
       upd.run(stableSyncId(["account", r.name.trim().toLowerCase(), r.account_type]), r.id);
     }
@@ -163,7 +183,9 @@ function backfillSyncIds(db: PepsiDb) {
     const rows = db
       .prepare(`SELECT id, entry_date FROM paper_days WHERE sync_id IS NULL OR sync_id = ''`)
       .all() as Array<{ id: number; entry_date: string }>;
-    const upd = db.prepare("UPDATE paper_days SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?");
+    const upd = db.prepare(
+      `UPDATE paper_days SET sync_id = ?, updated_at = ${updatedAtSql(db, "paper_days")} WHERE id = ?`
+    );
     for (const r of rows) {
       upd.run(stableSyncId(["paper", r.entry_date]), r.id);
     }
@@ -191,7 +213,7 @@ function backfillSyncIds(db: PepsiDb) {
       .prepare(`SELECT id FROM ${table} WHERE sync_id IS NULL OR sync_id = ''`)
       .all() as Array<{ id: number }>;
     const upd = db.prepare(
-      `UPDATE ${table} SET sync_id = ?, updated_at = COALESCE(updated_at, created_at, datetime('now','localtime')) WHERE id = ?`
+      `UPDATE ${table} SET sync_id = ?, updated_at = ${updatedAtSql(db, table)} WHERE id = ?`
     );
     for (const r of rows) {
       upd.run(`${seed}-${table}-${r.id}`, r.id);

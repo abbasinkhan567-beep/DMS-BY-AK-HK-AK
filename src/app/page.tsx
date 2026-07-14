@@ -17,7 +17,7 @@ import {
   TrendingUp,
   FileText,
 } from "lucide-react";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, readJson } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 
 type DashboardData = {
@@ -29,6 +29,7 @@ type DashboardData = {
   productCount: number;
   customerCount: number;
   salesmanCount: number;
+  error?: string;
 };
 
 const modules = [
@@ -49,13 +50,28 @@ const modules = [
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(console.error);
+      .then(async (r) => {
+        const json = await readJson<DashboardData & { error?: string }>(r);
+        if (!r.ok) throw new Error(json.error || `Failed (${r.status})`);
+        setData(json);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
   }, []);
+
+  if (error) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-rose-500">
+        <p>{error}</p>
+        <button className="text-brand-600 underline" onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (!data) {
     return (

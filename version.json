@@ -1,6 +1,6 @@
 {
-  "version": "1.7.0",
+  "version": "1.7.1",
   "name": "Pepsi Distribution",
-  "notes": "Clean Dev + Office one-click START folders",
+  "notes": "Fix login/dashboard JSON crash (sync schema created_at)",
   "updatedAt": "2026-07-15"
 }

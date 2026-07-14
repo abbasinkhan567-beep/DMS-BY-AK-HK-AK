@@ -3,8 +3,9 @@ import { getDb } from "@/lib/db";
 import { seedIfEmpty } from "@/lib/seed";
 
 export async function GET() {
-  seedIfEmpty();
-  const db = getDb();
+  try {
+    seedIfEmpty();
+    const db = getDb();
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -89,6 +90,13 @@ export async function GET() {
     recentSales,
     recentPurchases,
   });
+  } catch (e) {
+    console.error("dashboard error", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Dashboard failed" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(_req: NextRequest) {

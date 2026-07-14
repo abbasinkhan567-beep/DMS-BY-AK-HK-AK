@@ -254,6 +254,9 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "purchases", "expense3_label", "TEXT");
   addColumn(db, "purchases", "expense3_amount", "REAL NOT NULL DEFAULT 0");
   addColumn(db, "purchases", "total_expense", "REAL NOT NULL DEFAULT 0");
+  addColumn(db, "company_info", "created_at", "TEXT");
+  addColumn(db, "company_info", "sync_id", "TEXT");
+  addColumn(db, "company_info", "updated_at", "TEXT");
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();
   if (!company) {

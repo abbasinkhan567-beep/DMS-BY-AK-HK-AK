@@ -10,21 +10,29 @@ function isHttps(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  seedIfEmpty();
-  const body = await req.json().catch(() => ({}));
-  const password = String(body.password || "");
+  try {
+    seedIfEmpty();
+    const body = await req.json().catch(() => ({}));
+    const password = String(body.password || "");
 
-  const db = getDb();
-  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'password_hash'").get() as
-    | { value: string }
-    | undefined;
+    const db = getDb();
+    const row = db.prepare("SELECT value FROM app_settings WHERE key = 'password_hash'").get() as
+      | { value: string }
+      | undefined;
 
-  if (!row || row.value !== hashPassword(password)) {
-    return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
+    if (!row || row.value !== hashPassword(password)) {
+      return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
+    }
+
+    const token = await createSessionTokenEdge();
+    const res = NextResponse.json({ ok: true, message: "Logged in" });
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(undefined, { secure: isHttps(req) }));
+    return res;
+  } catch (e) {
+    console.error("login error", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Login failed" },
+      { status: 500 }
+    );
   }
-
-  const token = await createSessionTokenEdge();
-  const res = NextResponse.json({ ok: true, message: "Logged in" });
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(undefined, { secure: isHttps(req) }));
-  return res;
 }
