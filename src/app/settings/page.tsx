@@ -312,6 +312,8 @@ export default function SettingsPage() {
       const data = await res.json();
       setUpdateInfo(data);
       if (data.remoteUrl) setRemoteUrl(data.remoteUrl);
+      else if (!remoteUrl)
+        setRemoteUrl("https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git");
       if (showMsg) setMsg(data.message || "Checked");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Check failed");
@@ -828,7 +830,7 @@ export default function SettingsPage() {
             <div className="space-y-3 p-5">
               <Input
                 label="GitHub Repo URL"
-                placeholder="https://github.com/USERNAME/pepsi-distribution.git"
+                placeholder="https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git"
                 value={remoteUrl}
                 onChange={(e) => setRemoteUrl(e.target.value)}
               />

@@ -24,10 +24,18 @@ npm run dev
 
 Open: [http://localhost:3000](http://localhost:3000)
 
+## GitHub
+
+https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK
+
 ## Office install
+
+```bash
+git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
+```
 
 1. Run `INSTALL-OFFICE.bat`
 2. Use Desktop **Pepsi Distribution** icon
-3. For second office PC: see **[OFFICE-ONLINE.md](OFFICE-ONLINE.md)** — set Updates URL + Sync in Settings
+3. Second PC: see **[OFFICE-ONLINE.md](OFFICE-ONLINE.md)** — Updates URL + Sync
 
 Data file: `data/pepsi.db`

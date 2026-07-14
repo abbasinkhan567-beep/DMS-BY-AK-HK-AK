@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
 
 function readVersion() {
   try {
@@ -70,9 +71,16 @@ export async function GET() {
 
   info.hasRemote = hasRemote();
   if (!info.hasRemote) {
-    info.status = "no_remote";
-    info.message = "GitHub remote is not set. Developer should run PUBLISH-UPDATE.bat first.";
-    return NextResponse.json(info);
+    try {
+      run(`git remote add origin ${DEFAULT_GITHUB_REPO}`);
+      info.hasRemote = true;
+      info.remoteUrl = DEFAULT_GITHUB_REPO;
+    } catch {
+      info.status = "no_remote";
+      info.message = `Set GitHub URL to ${DEFAULT_GITHUB_REPO}`;
+      info.remoteUrl = DEFAULT_GITHUB_REPO;
+      return NextResponse.json(info);
+    }
   }
 
   try {

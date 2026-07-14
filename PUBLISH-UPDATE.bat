@@ -28,18 +28,9 @@ if not exist ".git" (
 
 git remote get-url origin >nul 2>nul
 if errorlevel 1 (
-  echo.
-  echo  GitHub remote is not set yet.
-  echo  1^) Create a new private repo on GitHub: pepsi-distribution
-  echo  2^) Then run these commands ^(use your own URL^):
-  echo.
-  echo     git remote add origin https://github.com/YOUR_USER/pepsi-distribution.git
-  echo     git branch -M main
-  echo     git push -u origin main
-  echo.
-  echo  Then run PUBLISH-UPDATE.bat again.
-  pause
-  exit /b 1
+  echo  Setting official GitHub remote...
+  git remote add origin https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
+  git branch -M main
 )
 
 set /p MSG="Update message (optional): "
