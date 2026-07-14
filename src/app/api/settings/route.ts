@@ -25,63 +25,79 @@ function updatePassword(
 }
 
 export async function GET() {
-  seedIfEmpty();
-  const db = getDb();
-  const company = db.prepare("SELECT * FROM company_info WHERE id = 1").get();
-  return NextResponse.json({ company });
+  try {
+    seedIfEmpty();
+    const db = getDb();
+    const company = db.prepare("SELECT * FROM company_info WHERE id = 1").get();
+    return NextResponse.json({ company });
+  } catch (e) {
+    console.error("settings GET error", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Settings failed" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PUT(req: NextRequest) {
-  const body = await req.json();
-  const { section } = body;
-  const db = getDb();
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { section } = body;
+    const db = getDb();
 
-  if (section === "company") {
-    const { name, phone, email, address, city, ntn, owner_name } = body;
-    db.prepare(
-      `UPDATE company_info SET name=?, phone=?, email=?, address=?, city=?, ntn=?, owner_name=?,
-       updated_at=datetime('now','localtime') WHERE id=1`
-    ).run(name || "", phone || "", email || "", address || "", city || "", ntn || "", owner_name || "");
-    const company = db.prepare("SELECT * FROM company_info WHERE id = 1").get();
-    return NextResponse.json({ company });
-  }
-
-  // Login password (app login screen)
-  if (section === "password" || section === "login_password") {
-    const result = updatePassword(
-      db,
-      "password_hash",
-      body.current_password,
-      body.new_password
-    );
-    if ("error" in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
+    if (section === "company") {
+      const { name, phone, email, address, city, ntn, owner_name } = body;
+      db.prepare(
+        `UPDATE company_info SET name=?, phone=?, email=?, address=?, city=?, ntn=?, owner_name=?,
+         updated_at=datetime('now','localtime') WHERE id=1`
+      ).run(name || "", phone || "", email || "", address || "", city || "", ntn || "", owner_name || "");
+      const company = db.prepare("SELECT * FROM company_info WHERE id = 1").get();
+      return NextResponse.json({ company });
     }
-    return NextResponse.json({ ok: true, message: "Login password updated" });
-  }
 
-  // Settings unlock password
-  if (section === "settings_password") {
-    // Ensure key exists for older DBs
-    const existing = db
-      .prepare("SELECT value FROM app_settings WHERE key = 'settings_password_hash'")
-      .get();
-    if (!existing) {
-      db.prepare("INSERT INTO app_settings (key, value) VALUES ('settings_password_hash', ?)").run(
-        hashPassword("settings123")
+    // Login password (app login screen)
+    if (section === "password" || section === "login_password") {
+      const result = updatePassword(
+        db,
+        "password_hash",
+        body.current_password,
+        body.new_password
       );
+      if ("error" in result) {
+        return NextResponse.json({ error: result.error }, { status: result.status });
+      }
+      return NextResponse.json({ ok: true, message: "Login password updated" });
     }
-    const result = updatePassword(
-      db,
-      "settings_password_hash",
-      body.current_password,
-      body.new_password
-    );
-    if ("error" in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
-    return NextResponse.json({ ok: true, message: "Settings password updated" });
-  }
 
-  return NextResponse.json({ error: "Unknown section" }, { status: 400 });
+    // Settings unlock password
+    if (section === "settings_password") {
+      // Ensure key exists for older DBs
+      const existing = db
+        .prepare("SELECT value FROM app_settings WHERE key = 'settings_password_hash'")
+        .get();
+      if (!existing) {
+        db.prepare("INSERT INTO app_settings (key, value) VALUES ('settings_password_hash', ?)").run(
+          hashPassword("settings123")
+        );
+      }
+      const result = updatePassword(
+        db,
+        "settings_password_hash",
+        body.current_password,
+        body.new_password
+      );
+      if ("error" in result) {
+        return NextResponse.json({ error: result.error }, { status: result.status });
+      }
+      return NextResponse.json({ ok: true, message: "Settings password updated" });
+    }
+
+    return NextResponse.json({ error: "Unknown section" }, { status: 400 });
+  } catch (e) {
+    console.error("settings PUT error", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Settings update failed" },
+      { status: 500 }
+    );
+  }
 }
