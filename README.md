@@ -12,7 +12,8 @@ Simple management software for a small Pepsi distribution company.
 - **Salesmen** — sales team data (name, phone, area, salary)
 - **Paper / Old Records** — enter historical forms by date without changing current stock
 - **Backup** — daily local backups (never auto-deleted) + Day One protected copy
-- **Office online** — one office server + Cloudflare tunnel so home and office share one database
+- **Sync** — each PC keeps a local database; sync via GitHub when online
+- **Updates** — pull new versions from this GitHub repo
 
 ## Run (developer)
 
@@ -21,12 +22,12 @@ npm install
 npm run dev
 ```
 
-Open: [http://localhost:3000](http://localhost:3000) — password `admin123`
+Open: [http://localhost:3000](http://localhost:3000)
 
 ## Office install
 
 1. Run `INSTALL-OFFICE.bat`
 2. Use Desktop **Pepsi Distribution** icon
-3. For remote (home) access: see **[OFFICE-ONLINE.md](OFFICE-ONLINE.md)** and run `START-ONLINE.bat`
+3. For second office PC: see **[OFFICE-ONLINE.md](OFFICE-ONLINE.md)** — set Updates URL + Sync in Settings
 
 Data file: `data/pepsi.db`
