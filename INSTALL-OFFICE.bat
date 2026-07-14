@@ -11,17 +11,36 @@ echo.
 
 where node >nul 2>nul
 if errorlevel 1 (
-  echo  [ERROR] Node.js is not installed.
-  echo  1^) Install LTS from https://nodejs.org
-  echo  2^) Close this window and run INSTALL-OFFICE.bat again
-  echo.
+  echo  [ERROR] Node.js missing.
+  echo  Install ONLY Node 20 LTS from https://nodejs.org
+  echo  ^(green LTS — not Current/24^)
+  start https://nodejs.org/en/download/prebuilt-installer
   pause
   exit /b 1
 )
 
+for /f "tokens=1 delims=v." %%a in ('node -v') do set MAJOR=%%a
 echo  Node version:
 node -v
-echo.
+if "%MAJOR%"=="24" goto BAD_NODE
+if "%MAJOR%"=="25" goto BAD_NODE
+if "%MAJOR%"=="23" goto BAD_NODE
+goto NODE_OK
+
+:BAD_NODE
+echo  [ERROR] Node %MAJOR% unsupported.
+echo  Uninstall it, install Node 20 LTS, see OFFICE-SIMPLE.md
+start https://nodejs.org/en/download/prebuilt-installer
+pause
+exit /b 1
+
+:NODE_OK
+
+echo  %CD% | findstr /I "OneDrive" >nul
+if %errorlevel%==0 (
+  echo  [WARN] OneDrive path detected. Prefer C:\Pepsi — see OFFICE-SIMPLE.md
+  echo.
+)
 
 echo  [1/4] Installing dependencies...
 call npm install

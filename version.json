@@ -1,6 +1,6 @@
 {
-  "version": "1.5.1",
+  "version": "1.5.2",
   "name": "Pepsi Distribution",
-  "notes": "FIX-OFFICE.bat for clone/start failures on office PC",
+  "notes": "Office: require Node 20 LTS; block Node 24; avoid OneDrive",
   "updatedAt": "2026-07-15"
 }
