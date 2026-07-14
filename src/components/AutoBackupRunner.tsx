@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** Daily backup + auto sync when online and a sync folder is configured. */
+/** Daily backup + merge-sync when online (both PCs keep all entries). */
 export function AutoBackupRunner() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -25,10 +25,10 @@ export function AutoBackupRunner() {
       try {
         if (!navigator.onLine) return;
         const syncKey = "pepsi-auto-sync-ping";
+        const slot = String(Math.floor(Date.now() / (2 * 60 * 1000)));
         const last = sessionStorage.getItem(syncKey);
-        const hour = new Date().toISOString().slice(0, 13);
-        if (last === hour) return;
-        sessionStorage.setItem(syncKey, hour);
+        if (last === slot) return;
+        sessionStorage.setItem(syncKey, slot);
         await fetch("/api/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -51,7 +51,7 @@ export function AutoBackupRunner() {
     window.addEventListener("online", onOnline);
     const id = window.setInterval(() => {
       if (navigator.onLine) ping();
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000);
 
     return () => {
       window.removeEventListener("online", onOnline);

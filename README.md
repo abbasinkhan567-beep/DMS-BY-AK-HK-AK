@@ -12,7 +12,7 @@ Simple management software for a small Pepsi distribution company.
 - **Salesmen** — sales team data (name, phone, area, salary)
 - **Paper / Old Records** — enter historical forms by date without changing current stock
 - **Backup** — daily local backups (never auto-deleted) + Day One protected copy
-- **Sync** — each PC keeps a local database; sync via GitHub when online
+- **Sync** — merge sync via GitHub: both PCs can enter data at the same time, no overwrite
 - **Updates** — pull new versions from this GitHub repo
 
 ## Run (developer)

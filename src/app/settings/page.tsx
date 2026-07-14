@@ -556,6 +556,9 @@ export default function SettingsPage() {
             </div>
             <div className="rounded-xl bg-surface-muted p-3 text-sm text-muted">
               <p>
+                <strong className="text-ink">Mode:</strong> Merge sync — both PCs keep all entries
+              </p>
+              <p className="mt-1">
                 <strong className="text-ink">Connected:</strong>{" "}
                 {syncInfo?.hasRemote ? syncInfo.remoteUrl || "Yes" : "Not set"}
               </p>
@@ -565,6 +568,7 @@ export default function SettingsPage() {
                   ? new Date(syncInfo.lastSyncAt).toLocaleString()
                   : "Not yet"}
               </p>
+              <p className="mt-1 text-xs">Auto sync every ~2 min when online.</p>
             </div>
           </div>
         </Card>

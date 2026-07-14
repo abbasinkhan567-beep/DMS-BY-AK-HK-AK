@@ -1,6 +1,6 @@
 {
-  "version": "1.4.2",
+  "version": "1.5.0",
   "name": "Pepsi Distribution",
-  "notes": "Official GitHub repo wired for Updates and Sync",
+  "notes": "Merge sync — both PCs keep all entries, auto sync when online",
   "updatedAt": "2026-07-14"
 }

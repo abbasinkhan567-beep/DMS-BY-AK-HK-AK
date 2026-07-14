@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { ensureSyncSchema } from "@/lib/sync-ids";
 
 const dataDir = path.join(process.cwd(), "data");
 if (!fs.existsSync(dataDir)) {
@@ -302,6 +303,8 @@ function ensureSchema(db: Database.Database) {
       ins.run(name, type);
     }
   }
+
+  ensureSyncSchema(db);
 }
 
 function createDb() {

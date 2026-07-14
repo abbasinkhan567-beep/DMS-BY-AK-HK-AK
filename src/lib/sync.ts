@@ -4,8 +4,12 @@ import crypto from "crypto";
 import { execSync } from "child_process";
 import { dbPath, getDb, resetDbConnection } from "@/lib/db";
 import { createBackup } from "@/lib/backup";
+import { mergeRemoteIntoLocal } from "@/lib/merge-db";
+import { ensureSyncSchema } from "@/lib/sync-ids";
+import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
 
 const SYNC_BRANCH = "data-sync";
+const SYNC_LOCK = path.join(process.cwd(), "data", ".sync.lock");
 
 export type SyncMeta = {
   updatedAt: string;
@@ -17,10 +21,12 @@ export type SyncMeta = {
 
 export type SyncResult = {
   ok: boolean;
-  action: "none" | "uploaded" | "downloaded" | "conflict_kept_newer" | "initialized";
+  action: "none" | "uploaded" | "downloaded" | "merged" | "initialized";
   message: string;
   meta?: SyncMeta | null;
   lastSyncAt?: string;
+  added?: number;
+  updated?: number;
 };
 
 function settingGet(key: string): string | null {
@@ -87,7 +93,12 @@ function getOriginUrl(): string | null {
   try {
     return run("git remote get-url origin").trim() || null;
   } catch {
-    return null;
+    try {
+      run(`git remote add origin ${DEFAULT_GITHUB_REPO}`);
+      return DEFAULT_GITHUB_REPO;
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -196,10 +207,35 @@ function pushLocalDb(origin: string, meta: SyncMeta): void {
   reopenDb();
 }
 
+function withSyncLock<T>(fn: () => T): T {
+  if (fs.existsSync(SYNC_LOCK)) {
+    const age = Date.now() - fs.statSync(SYNC_LOCK).mtimeMs;
+    if (age < 3 * 60 * 1000) {
+      throw new Error("Sync already running on this PC — try again in a minute.");
+    }
+  }
+  fs.writeFileSync(SYNC_LOCK, String(Date.now()), "utf8");
+  try {
+    return fn();
+  } finally {
+    try {
+      fs.unlinkSync(SYNC_LOCK);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function runGitHubSync(): SyncResult {
+  return withSyncLock(() => runGitHubSyncInner());
+}
+
+function runGitHubSyncInner(): SyncResult {
   if (!hasGit()) {
     return { ok: false, action: "none", message: "Git is not installed. Install from git-scm.com" };
   }
+
+  ensureSyncSchema(getDb());
 
   const rawOrigin = getOriginUrl();
   if (!rawOrigin) {
@@ -211,14 +247,17 @@ export function runGitHubSync(): SyncResult {
   }
 
   const origin = authedRemoteUrl(rawOrigin);
-  const local = localMeta();
-  const lastPushAt = settingGet("last_push_at");
-  const lastSyncAt = settingGet("last_sync_at");
+
+  try {
+    createBackup("manual");
+  } catch {
+    /* still continue sync */
+  }
 
   const exists = remoteBranchExists(origin);
   if (!exists) {
     try {
-      createBackup("manual");
+      const local = localMeta();
       pushLocalDb(origin, local);
       const now = new Date().toISOString();
       settingSet("last_sync_at", now);
@@ -227,7 +266,7 @@ export function runGitHubSync(): SyncResult {
       return {
         ok: true,
         action: "initialized",
-        message: "First sync uploaded to GitHub. Office can Sync Now to receive it.",
+        message: "First sync uploaded. Other PC Sync Now pe merge ho jayega.",
         meta: local,
         lastSyncAt: now,
       };
@@ -236,7 +275,7 @@ export function runGitHubSync(): SyncResult {
         ok: false,
         action: "none",
         message:
-          "Upload failed. Add a GitHub token in Sync settings (or login git once). " +
+          "Upload failed. Add a GitHub token in Sync settings. " +
           String(e instanceof Error ? e.message : e).slice(0, 180),
       };
     }
@@ -260,92 +299,59 @@ export function runGitHubSync(): SyncResult {
     return { ok: false, action: "none", message: "Cloud sync data missing." };
   }
 
-  if (remoteMeta.checksum && local.checksum && remoteMeta.checksum === local.checksum) {
+  const localBefore = localMeta();
+  if (remoteMeta.checksum && localBefore.checksum && remoteMeta.checksum === localBefore.checksum) {
     const now = new Date().toISOString();
     settingSet("last_sync_at", now);
     return {
       ok: true,
       action: "none",
-      message: "Already up to date.",
-      meta: local,
+      message: "Already up to date — dono taraf same data.",
+      meta: localBefore,
       lastSyncAt: now,
     };
   }
 
-  const remoteUpdated = remoteMeta.updatedAt;
-  const localUpdated = local.updatedAt;
-  const localChangedSincePush = !lastPushAt || localUpdated > lastPushAt;
-
-  // Local newer → upload
-  if (localUpdated > remoteUpdated) {
-    try {
-      createBackup("manual");
-      pushLocalDb(origin, local);
-      const now = new Date().toISOString();
-      settingSet("last_sync_at", now);
-      settingSet("last_push_at", localUpdated);
-      return {
-        ok: true,
-        action: "uploaded",
-        message: "Your data was uploaded. Other PC will get it on Sync / when online.",
-        meta: local,
-        lastSyncAt: now,
-      };
-    } catch (e) {
-      reopenDb();
-      return {
-        ok: false,
-        action: "none",
-        message:
-          "Upload failed (need GitHub login/token). " +
-          String(e instanceof Error ? e.message : e).slice(0, 160),
-      };
-    }
+  // Merge remote rows into local (no overwrite of whole DB)
+  let merge;
+  try {
+    merge = mergeRemoteIntoLocal(remoteDb);
+  } catch (e) {
+    reopenDb();
+    return {
+      ok: false,
+      action: "none",
+      message: "Merge failed: " + String(e instanceof Error ? e.message : e).slice(0, 180),
+    };
   }
 
-  // Remote newer → download
-  if (remoteUpdated > localUpdated) {
-    try {
-      createBackup("manual");
-      flushDb();
-      fs.copyFileSync(remoteDb, dbPath);
-      for (const extra of [`${dbPath}-wal`, `${dbPath}-shm`]) {
-        if (fs.existsSync(extra)) {
-          try {
-            fs.unlinkSync(extra);
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-      reopenDb();
-      const now = new Date().toISOString();
-      settingSet("last_sync_at", now);
-      settingSet("last_pull_at", remoteUpdated);
-      settingSet("last_push_at", remoteUpdated);
-      const conflict = localChangedSincePush && Boolean(lastSyncAt);
-      return {
-        ok: true,
-        action: conflict ? "conflict_kept_newer" : "downloaded",
-        message: conflict
-          ? "Both PCs changed — kept newer cloud copy. Previous local data is in Backups."
-          : "Downloaded latest data from GitHub.",
-        meta: remoteMeta,
-        lastSyncAt: now,
-      };
-    } catch (e) {
-      reopenDb();
-      return {
-        ok: false,
-        action: "none",
-        message: "Download failed: " + String(e instanceof Error ? e.message : e).slice(0, 160),
-      };
-    }
+  // Always publish merged database so other PC gets everything
+  try {
+    const local = localMeta();
+    pushLocalDb(origin, local);
+    const now = new Date().toISOString();
+    settingSet("last_sync_at", now);
+    settingSet("last_push_at", local.updatedAt);
+    settingSet("last_pull_at", remoteMeta.updatedAt);
+    return {
+      ok: true,
+      action: "merged",
+      message: merge.message,
+      meta: local,
+      lastSyncAt: now,
+      added: merge.added,
+      updated: merge.updated,
+    };
+  } catch (e) {
+    reopenDb();
+    return {
+      ok: false,
+      action: "none",
+      message:
+        "Merged locally but upload failed (token?). " +
+        String(e instanceof Error ? e.message : e).slice(0, 160),
+    };
   }
-
-  const now = new Date().toISOString();
-  settingSet("last_sync_at", now);
-  return { ok: true, action: "none", message: "Nothing to sync.", lastSyncAt: now };
 }
 
 export function syncStatus() {
@@ -364,5 +370,6 @@ export function syncStatus() {
     remoteUrl,
     hasToken: Boolean(getSyncToken()),
     syncBranch: SYNC_BRANCH,
+    mode: "merge",
   };
 }

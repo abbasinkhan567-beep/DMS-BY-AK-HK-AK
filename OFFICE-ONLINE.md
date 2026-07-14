@@ -1,42 +1,42 @@
-# Simple guide — GitHub only
+# Simple guide — GitHub merge sync
 
 No OneDrive. No Google Drive. No tunnel.
 
 **Repo:** https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK
 
-## What stays local
+## How sync works (important)
 
-Every PC keeps `data/pepsi.db` on its own disk. **Offline always works.**
+- Har PC apni `data/pepsi.db` rakhti hai (offline OK).
+- Sync **merge** karta hai — dono taraf ki entries rehti hain.
+- Paper/old + office daily **ek saath** chal sakte hain — koi “winner” overwrite nahi.
+- Internet pe auto sync ~2 minute; Settings → **Sync Now** bhi.
 
 ## One-time setup
 
-### A) Your PC (developer)
-1. Code already on GitHub (`main` branch)  
-2. Run app → login → change password  
-3. Settings → Updates → GitHub URL is auto-set to this repo (Save if blank)  
-4. Settings → Sync → PC name `Home` → Sync Now  
-   - If upload fails: add a GitHub Personal Access Token (repo scope) in Sync
+### A) Home / developer PC
+1. Repo already on GitHub  
+2. App chalao → Settings → Sync → PC name `Home` → GitHub token (repo scope) → **Sync Now**  
+3. Updates URL auto: same GitHub repo  
 
 ### B) Office PC
 1. Clone:
    ```bash
    git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
    ```
-2. Run `INSTALL-OFFICE.bat` → Desktop icon  
-3. Login → Settings → Updates → same URL (auto-filled) → Check Updates  
-4. Settings → Sync → PC name `Office` → same token if needed → Sync Now  
+2. `INSTALL-OFFICE.bat` → Desktop icon  
+3. Settings → Sync → PC name `Office` → **same GitHub token** → **Sync Now**  
+4. Settings → Updates → Check / Apply when new software out  
 
 ## Daily
 
 | Who | What |
 |-----|------|
-| Office | Normal sales on Desktop app (offline OK) |
-| You | Old/paper data on your PC (offline OK) |
-| Internet on | App auto Sync, or press **Sync Now** |
-| Software change | You edit → `PUBLISH-UPDATE.bat` → office **Updates → Apply** |
+| Anyone | Sales, paper, purchases — anytime |
+| Online | Auto merge sync |
+| Software change | `PUBLISH-UPDATE.bat` → office **Updates → Apply** |
 
 ## Remember
 
-- **Updates button** = new software only (data safe)  
-- **Sync button** = data between home ↔ office via GitHub `data-sync` branch  
-- Newer data wins; old copy kept in Backups  
+- **Updates** = new software only (data safe)  
+- **Sync** = data merge via GitHub `data-sync` branch  
+- Same customer/product names match across PCs automatically  
