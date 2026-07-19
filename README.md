@@ -1,38 +1,31 @@
 # Pepsi Distribution Management System
 
-**Developer folder:** this project  
-**Office folder:** run `MAKE-OFFICE.bat` → creates `F:\Pepsi-Office`
+Chhoti Pepsi distribution company ke liye complete management software.
 
-## Quick start
+## Quick Start (Office PC)
 
-1. Install **Node.js 22+** — https://nodejs.org  
-2. Double-click **`START.bat`**  
+1. Install **Node.js 22+** from https://nodejs.org
+2. Open CMD and run:
+```
+git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git "F:\Pepsi-Office"
+cd "F:\Pepsi-Office"
+START.bat
+```
 3. Login: `admin123` · Settings: `settings123`
 
-See **`START-HERE.txt`** for Developer / Office / Sync / Updates.
+## Developer PC
 
-## Developer
-
-| File | What |
-|------|------|
-| `START.bat` | Run the app |
+| Command | What |
+|---------|------|
+| `START.bat` | Build + run app |
 | `PUBLISH.bat` | Push code to GitHub |
-| `MAKE-OFFICE.bat` | Build `F:\Pepsi-Office` package |
-| `BACKUP-NOW.bat` | Manual DB backup |
-
-```bash
-npm install
-npm run dev
-```
-
-## Office
-
-- Copy `F:\Pepsi-Office` or clone the repo  
-- Double-click **`START.bat`**  
-- Settings → Sync + Updates  
-
-Repo: https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build |
 
 ## Features
 
-Dashboard, Products, Purchases, Sales, Customers, Salesmen, Paper/Old Records, Expenses, Ledgers, Backup, **merge Sync** (both PCs keep entries), Updates via GitHub.
+Dashboard, Products, Purchases, Sales, Customers, Salesmen, Paper/Old Records, Expenses, Ledgers, Accounts, Backup, **Merge Sync** (both PCs keep entries), Updates via GitHub.
+
+## Tech
+
+Next.js 15 + Tailwind CSS + SQLite (built-in `node:sqlite`)
