@@ -18,7 +18,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-for /f "tokens=1 delims=v." %%a in ('node -v') do set MAJOR=%%a
+for /f "tokens=2 delims=v." %%a in ('node -v') do set MAJOR=%%a
 set /a MAJOR_NUM=%MAJOR% 2>nul
 echo  Node: 
 node -v
@@ -29,11 +29,13 @@ if %MAJOR_NUM% LSS 22 (
   exit /b 1
 )
 
+set PORT=3000
+
 REM Already running? open browser only
-powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:3000/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
+powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:%PORT%/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
 if %errorlevel%==0 (
   echo  Already running — opening browser...
-  start "" http://localhost:3000/login
+  start "" http://localhost:%PORT%/login
   exit /b 0
 )
 
@@ -57,18 +59,21 @@ if not exist ".next\BUILD_ID" (
   )
 )
 
-echo  [3/3] Starting server...
-start "Pepsi Dist Server" /D "%~dp0" /MIN cmd /c "npm start"
+echo  [3/3] Starting server on port %PORT%...
+start "Pepsi Dist Server" /D "%~dp0" /MIN cmd /c "npx next start -p %PORT%"
 
 echo  Waiting for app...
 set /a tries=0
 :WAIT
 set /a tries+=1
 timeout /t 2 /nobreak >nul
-powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:3000/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
+powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:%PORT%/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
 if %errorlevel%==0 goto OK
 if %tries% Geq 25 (
-  echo  [ERROR] Server did not start. Try again or check Node version.
+  echo  [ERROR] Server did not start. Check npm-debug.log or run manually:
+  echo    cd /d "%~dp0"
+  echo    npm run build
+  echo    npx next start -p %PORT%
   pause
   exit /b 1
 )
@@ -76,8 +81,8 @@ goto WAIT
 
 :OK
 echo.
-echo  READY — http://localhost:3000/login
+echo  READY — http://localhost:%PORT%/login
 echo  Password: admin123
 echo.
-start "" http://localhost:3000/login
+start "" http://localhost:%PORT%/login
 exit /b 0
