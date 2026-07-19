@@ -55,6 +55,13 @@ export async function DELETE(req: NextRequest) {
   }
 
   const db = getDb();
+  const hasSales = db.prepare("SELECT COUNT(*) as c FROM sales WHERE customer_id = ?").get(id) as { c: number };
+  if (hasSales.c > 0) {
+    return NextResponse.json(
+      { error: "Cannot delete. This customer has sales records. Remove those entries first." },
+      { status: 400 }
+    );
+  }
   db.prepare("DELETE FROM customers WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

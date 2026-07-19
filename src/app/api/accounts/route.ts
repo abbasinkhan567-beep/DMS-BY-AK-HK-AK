@@ -39,7 +39,8 @@ export async function PUT(req: NextRequest) {
     | undefined;
   if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const delta = (opening_balance ?? current.opening_balance) - current.opening_balance;
+  const newOpening = opening_balance !== undefined ? opening_balance : current.opening_balance;
+  const delta = newOpening - current.opening_balance;
   db.prepare(
     `UPDATE accounts SET name=?, account_type=?, phone=?, opening_balance=?, balance=balance+?, notes=?
      WHERE id=?`

@@ -65,6 +65,14 @@ export async function DELETE(req: NextRequest) {
   }
 
   const db = getDb();
+  const used = db.prepare("SELECT COUNT(*) as c FROM purchase_items WHERE product_id = ?").get(id) as { c: number };
+  const sold = db.prepare("SELECT COUNT(*) as c FROM sale_items WHERE product_id = ?").get(id) as { c: number };
+  if (used.c > 0 || sold.c > 0) {
+    return NextResponse.json(
+      { error: "Cannot delete. This product is used in purchases or sales. Remove those entries first." },
+      { status: 400 }
+    );
+  }
   db.prepare("DELETE FROM products WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

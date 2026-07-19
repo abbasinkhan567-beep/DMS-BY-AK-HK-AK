@@ -8,8 +8,8 @@ import {
   CalendarRange,
   Calendar,
 } from "lucide-react";
-import { formatDate, formatMoney } from "@/lib/utils";
-import { PageHeader } from "@/components/ui";
+import { formatDate, formatMoney, readJson } from "@/lib/utils";
+import { Button, PageHeader } from "@/components/ui";
 
 type Period = {
   income: number;
@@ -112,13 +112,28 @@ function PeriodCard({
 
 export default function IncomePage() {
   const [data, setData] = useState<IncomeData | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/income")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(console.error);
+      .then(async (r) => {
+        const json = await readJson<IncomeData>(r);
+        if (!r.ok) throw new Error("Failed to load income data");
+        setData(json);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
   }, []);
+
+  if (error) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-rose-500">
+        <p>{error}</p>
+        <button className="text-brand-600 underline" onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
