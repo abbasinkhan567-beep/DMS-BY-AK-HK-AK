@@ -7,7 +7,7 @@ echo.
 echo  ========================================
 echo   MAKE OFFICE PACKAGE
 echo  ========================================
-echo  Creates: F:\Pepsi-Office
+echo  Creates: C:\Pepsi-Office
 echo  Office user only needs START.bat
 echo.
 
@@ -32,7 +32,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-set DEST=F:\Pepsi-Office
+set DEST=C:\Pepsi-Office
 if not exist "%DEST%" mkdir "%DEST%"
 
 echo  Copying files to %DEST% ...
@@ -83,7 +83,7 @@ if exist "%DEST%\START-HERE.txt" del /f /q "%DEST%\START-HERE.txt"
 
 echo.
 echo  ========================================
-echo   DONE: F:\Pepsi-Office
+echo   DONE: C:\Pepsi-Office
 echo  ========================================
 echo  Office: open that folder -^> START.bat
 echo  ^(First run will npm install — needs internet once^)

@@ -7,8 +7,8 @@ Chhoti Pepsi distribution company ke liye complete management software.
 1. Install **Node.js 22+** from https://nodejs.org
 2. Open CMD and run:
 ```
-git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git "F:\Pepsi-Office"
-cd "F:\Pepsi-Office"
+git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git "C:\Pepsi-Office"
+cd "C:\Pepsi-Office"
 START.bat
 ```
 3. Login: `admin123` · Settings: `settings123`
