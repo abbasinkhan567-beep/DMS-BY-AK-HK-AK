@@ -32,16 +32,8 @@ if %MAJOR_NUM% LSS 22 (
 
 set PORT=3000
 
-REM Check if already running (using node instead of powershell)
-node -e "http=require('http');http.get('http://localhost:%PORT%/login',r=>{process.exit(r.statusCode==200?0:1)}).on('error',()=>process.exit(1))" >nul 2>nul
-if not errorlevel 1 (
-  echo  Already running — opening browser...
-  start "" http://localhost:%PORT%/login
-  exit /b 0
-)
-
 if not exist "node_modules\" (
-  echo  [1/3] Installing packages (first time — wait)...
+  echo  [1/3] Installing packages (first time)...
   call npm install
   if errorlevel 1 (
     echo  [ERROR] npm install failed.
@@ -51,7 +43,7 @@ if not exist "node_modules\" (
 )
 
 if not exist ".next\BUILD_ID" (
-  echo  [2/3] Building app (first time — wait)...
+  echo  [2/3] Building app (first time)...
   call npm run build
   if errorlevel 1 (
     echo  [ERROR] Build failed.
@@ -63,32 +55,13 @@ if not exist ".next\BUILD_ID" (
 echo  [3/3] Starting server on port %PORT%...
 start "Pepsi Dist Server" /D "%~dp0" /MIN cmd /c "npx next start -p %PORT%"
 
-echo  Waiting for app to start...
-set /a tries=0
-:WAIT
-set /a tries+=1
-timeout /t 2 /nobreak >nul
-node -e "http=require('http');http.get('http://localhost:%PORT%/login',r=>{process.exit(r.statusCode==200?0:1)}).on('error',()=>process.exit(1))" >nul 2>nul
-if errorlevel 1 goto WAIT2
-goto OK
-:WAIT2
-if %tries% geq 25 (
-  echo  [ERROR] Server did not start. Run manually:
-  echo    cd /d "%~dp0"
-  echo    npm run build
-  echo    npx next start -p %PORT%
-  pause
-  exit /b 1
-)
-goto WAIT
-
-:OK
 echo.
 echo  ========================================
-echo   READY — http://localhost:%PORT%/login
+echo   READY ? http://localhost:%PORT%/login
 echo   Password: admin123
 echo  ========================================
 echo.
+timeout /t 3 /nobreak >nul
 start "" http://localhost:%PORT%/login
 pause
 exit /b 0
