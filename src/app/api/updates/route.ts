@@ -175,10 +175,12 @@ export async function POST(req: NextRequest) {
         log += "stash-skip\n";
       }
     } else {
-      log += "no-commits - cleaning untracked files\n";
+      log += "no-commits\n";
       try { run("git clean -fd -e data/"); } catch {}
     }
-    log += "\n" + run("git pull --ff-only origin main");
+    log += "\n" + run("git fetch origin main");
+    log += "\n" + run("git checkout -B main origin/main");
+    log += "\n" + run("git clean -fd -e data/");
     log += "\n" + run("npm install");
     log += "\n" + run("npm run build");
     const after = readVersion();

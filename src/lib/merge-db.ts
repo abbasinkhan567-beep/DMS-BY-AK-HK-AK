@@ -262,8 +262,8 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
     updated,
     message:
       added || updated
-        ? `Merged OK — ${added} new, ${updated} updated. Both PCs keep all entries.`
-        : "Already merged — nothing new.",
+        ? `Synced: ${added} new entries added, ${updated} entries updated.`
+        : "Already up to date — same data on both PCs.",
   };
 }
 

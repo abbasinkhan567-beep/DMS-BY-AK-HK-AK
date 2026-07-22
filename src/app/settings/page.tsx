@@ -220,7 +220,7 @@ export default function SettingsPage() {
       if (!res.ok || data.ok === false) throw new Error(data.error || data.message || "Sync failed");
       setSyncInfo(data);
       setMsg(data.message || "Synced");
-      if (data.action === "downloaded" || data.action === "conflict_kept_newer") {
+      if (data.action === "merged" || data.action === "uploaded" || data.action === "downloaded") {
         setTimeout(() => window.location.reload(), 1000);
       }
     } catch (e) {
