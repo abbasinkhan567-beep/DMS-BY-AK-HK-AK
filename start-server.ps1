@@ -11,6 +11,14 @@ function Write-Msg {
   if ($Setup) { Write-Host $m }
 }
 
+function Check-LastExit {
+  param($label)
+  if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+    Write-Msg "FAILED: $label (exit $LASTEXITCODE)"
+    if ($Setup) { Write-Host "ERROR: $label failed (exit $LASTEXITCODE) — check $log" -ForegroundColor Red }
+  }
+}
+
 "--- $(Get-Date) Start ---" | Out-File $log
 
 try {
@@ -27,6 +35,7 @@ if (-not (Test-Path "$base\node_modules")) {
   Write-Msg "Installing packages..."
   if ($Setup) { Write-Host "Running: npm install" }
   npm install 2>&1 | Out-File $log -Append
+  Check-LastExit "npm install"
   if ($Setup) { Write-Host "npm install done" }
 }
 
@@ -34,10 +43,19 @@ if (-not (Test-Path "$base\.next\BUILD_ID")) {
   Write-Msg "Building app..."
   if ($Setup) { Write-Host "Running: npm run build (may take 1-2 min)..." }
   npm run build 2>&1 | Out-File $log -Append
+  Check-LastExit "npm run build"
   if ($Setup) { Write-Host "Build done" }
 }
 
-# Create setup-done flag
+if (-not (Test-Path "$base\.next\BUILD_ID")) {
+  Write-Msg "Build output missing — giving up"
+  if ($Setup) {
+    Write-Host "ERROR: Build failed — .next/BUILD_ID not found. Check $log" -ForegroundColor Red
+    Read-Host "Press Enter"
+  }
+  exit 1
+}
+
 if (-not (Test-Path $flag)) {
   Write-Msg "Setup complete!"
   "" | Out-File $flag
@@ -54,13 +72,24 @@ if (-not (Test-Path $flag)) {
 
 Write-Msg "Killing old node"
 taskkill /f /im node.exe 2>$null
-Start-Sleep 2
+Start-Sleep 3
+
+# Check if port 3000 is still in use
+$portCheck = netstat -ano 2>$null | Select-String ":3000 "
+if ($portCheck) {
+  Write-Msg "Port 3000 still in use by another process"
+  if ($Setup) { Write-Host "Warning: Port 3000 in use, trying anyway..." -ForegroundColor Yellow }
+}
 
 Write-Msg "Starting server"
-$p = Start-Process -WindowStyle Hidden -PassThru -FilePath cmd -ArgumentList "/c npx next start -p 3000"
+$nextBin = "$base\node_modules\.bin\next.cmd"
+if (-not (Test-Path $nextBin)) { $nextBin = "npx --yes next" }
+$p = Start-Process -WindowStyle Hidden -PassThru -FilePath cmd -ArgumentList "/c `"$nextBin`" start -p 3000"
 $p.Id | Out-File "$base\data\server-pid.txt"
+Write-Msg "Server PID: $($p.Id)"
 
 Write-Msg "Waiting for server..."
+$ready = $false
 for ($i=0; $i -lt 30; $i++) {
   Start-Sleep 2
   try {
@@ -70,10 +99,28 @@ for ($i=0; $i -lt 30; $i++) {
       Start-Process "http://localhost:3000/login"
       Write-Msg "Done"
       if ($Setup) { Start-Sleep 2 }
-      exit 0
+      $ready = $true
+      break
     }
   } catch {}
 }
-Write-Msg "Server did not start"
-if ($Setup) { Read-Host "Press Enter" }
-exit 1
+
+if (-not $ready) {
+  Write-Msg "Server did not start in 60s"
+  $proc = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+  if (-not $proc) {
+    Write-Msg "Server process exited early — check $log for details or run manually: npm run build && npx next start -p 3000"
+  } else {
+    Write-Msg "Process $($p.Id) still running but not responding on port 3000"
+  }
+  if ($Setup) {
+    Write-Host ""
+    Write-Host "Server did not start. Possible fixes:" -ForegroundColor Yellow
+    Write-Host "  1. Run manually: npm run build" -ForegroundColor White
+    Write-Host "  2. Then: npx next start -p 3000" -ForegroundColor White
+    Write-Host "  3. Check log: $log" -ForegroundColor White
+    Write-Host ""
+    Read-Host "Press Enter"
+  }
+  exit 1
+}
