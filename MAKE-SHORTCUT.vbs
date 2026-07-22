@@ -3,8 +3,8 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 base = fso.GetParentFolderName(WScript.ScriptFullName)
 
 Set sc = WshShell.CreateShortcut(WshShell.SpecialFolders("Desktop") & "\Pepsi Distribution.lnk")
-sc.TargetPath = "wscript.exe"
-sc.Arguments = """" & base & "\start-server.vbs"""
+sc.TargetPath = "powershell.exe"
+sc.Arguments = "-WindowStyle Hidden -ExecutionPolicy RemoteSigned -File """ & base & "\start-server.ps1"""
 sc.WorkingDirectory = base
 sc.Description = "Pepsi Distribution Management System"
 ico = base & "\public\icon.ico"
