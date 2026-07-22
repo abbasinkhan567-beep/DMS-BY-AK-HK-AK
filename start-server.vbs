@@ -14,16 +14,16 @@ On Error GoTo 0
 
 ' Install if needed
 If Not fso.FolderExists(base & "\node_modules") Then
-  WshShell.Run "cmd /c npm install", 0, True
+  WshShell.Run "powershell -WindowStyle Hidden -Command ""& npm install""", 0, True
 End If
 
 ' Build if needed
 If Not fso.FileExists(base & "\.next\BUILD_ID") Then
-  WshShell.Run "cmd /c npm run build", 0, True
+  WshShell.Run "powershell -WindowStyle Hidden -Command ""& npm run build""", 0, True
 End If
 
-' Start server hidden
-WshShell.Run "cmd /c npx next start -p 3000", 0, False
+' Start server hidden via PowerShell (no cmd, no Windows Terminal)
+WshShell.Run "powershell -WindowStyle Hidden -Command ""& npx next start -p 3000""", 0, False
 
 ' Open browser
 WScript.Sleep 5000
