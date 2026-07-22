@@ -32,6 +32,23 @@ try {
   exit 1
 }
 
+# Auto-update: fetch latest code from GitHub if git repo exists
+$hasGitRepo = Test-Path "$base\.git"
+if ($hasGitRepo) {
+  try {
+    $remote = git remote get-url origin 2>$null
+    if ($remote) {
+      Write-Msg "Auto-update: fetching latest code..."
+      git fetch origin main 2>&1 | Out-File $log -Append
+      git checkout -B main origin/main 2>&1 | Out-File $log -Append
+      git clean -fd -e data/ 2>&1 | Out-File $log -Append
+      Write-Msg "Auto-update done"
+    }
+  } catch {
+    Write-Msg "Auto-update skipped (no remote)"
+  }
+}
+
 if (-not (Test-Path "$base\node_modules")) {
   Write-Msg "Installing packages..."
   if ($Setup) { Write-Host "Running: npm install" }
@@ -39,6 +56,9 @@ if (-not (Test-Path "$base\node_modules")) {
   Check-LastExit "npm install"
   if ($Setup) { Write-Host "npm install done" }
 }
+
+# Handle allow-scripts if needed
+try { npm approve-scripts --allow-scripts-pending 2>$null | Out-File $log -Append } catch {}
 
 if (-not (Test-Path "$base\.next\BUILD_ID")) {
   Write-Msg "Building app..."

@@ -182,6 +182,7 @@ export async function POST(req: NextRequest) {
     log += "\n" + run("git checkout -B main origin/main");
     log += "\n" + run("git clean -fd -e data/");
     log += "\n" + run("npm install");
+    try { log += "\n" + run("npm approve-scripts --allow-scripts-pending 2>nul"); } catch { log += "\nallow-scripts-skip\n"; }
     log += "\n" + run("npm install -D typescript --no-save");
     log += "\n" + run("npm run build");
     const after = readVersion();
