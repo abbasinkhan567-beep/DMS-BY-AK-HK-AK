@@ -8,8 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "seed": "tsx scripts/seed.ts"
+    "start": "next start"
   },
   "dependencies": {
     "clsx": "^2.1.1",

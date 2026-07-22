@@ -19,7 +19,6 @@ Files in this folder:
   START.bat           Launch the app
   PUBLISH.bat         Push code changes to GitHub
   MAKE-OFFICE.bat     Create ready-to-run folder for Office PC
-  MAKE-SHORTCUT.vbs   Create desktop shortcut manually
   BACKUP-NOW.bat      Manual database backup
   version.json        Current version number
 

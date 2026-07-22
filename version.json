@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
+  "version": "3.0.0",
   "name": "Pepsi Distribution",
-  "notes": "Final cleanup: zero build errors, bug fixes, sync merge, extra files removed, modal Escape/backdrop close",
+  "notes": "v3: next.config.mjs (no TypeScript needed), historical filter for today KPIs/daily income, updates installs TypeScript, stale files removed",
   "updatedAt": "2026-07-22"
 }
