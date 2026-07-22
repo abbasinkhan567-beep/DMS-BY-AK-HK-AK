@@ -11,9 +11,10 @@ echo  Creates: C:\Pepsi-Office
 echo  Office user only needs START.bat
 echo.
 
-where node >nul 2>nul
+node -v >nul 2>nul
 if errorlevel 1 (
   echo  [ERROR] Node.js required on this PC first.
+  start https://nodejs.org
   pause
   exit /b 1
 )
@@ -76,6 +77,21 @@ echo.
 echo Do NOT use PUBLISH here. That is only on Developer PC.
 ) > "%DEST%\README-OFFICE.txt"
 
+REM Setup git repo so Updates and Sync work out of the box
+echo  Setting up git repo...
+cd /d "%DEST%"
+git init -b main >nul 2>nul
+git config user.email "pepsi@local"
+git config user.name "Pepsi Distribution"
+git add -A >nul 2>nul
+git commit -m "Office setup" >nul 2>nul
+git remote add origin https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git >nul 2>nul
+echo  .setup-done > "%DEST%\.setup-done" 2>nul
+cd /d "%~dp0"
+
+REM Desktop shortcut
+powershell -NoProfile -Command "$ws=New-Object -ComObject WScript.Shell; $sc=$ws.CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Pepsi Distribution.lnk'); $sc.TargetPath='powershell.exe'; $sc.Arguments='-WindowStyle Hidden -ExecutionPolicy RemoteSigned -File """%DEST%\start-server.ps1"""'; $sc.WorkingDirectory='%DEST%'; $sc.Description='Pepsi Distribution Management System'; $ico='%DEST%\public\icon.ico'; if(Test-Path $ico){$sc.IconLocation=$ico}; $sc.Save()"
+
 REM Office should not ship developer publish tooling
 if exist "%DEST%\PUBLISH.bat" del /f /q "%DEST%\PUBLISH.bat"
 if exist "%DEST%\MAKE-OFFICE.bat" del /f /q "%DEST%\MAKE-OFFICE.bat"
@@ -85,7 +101,7 @@ echo.
 echo  ========================================
 echo   DONE: C:\Pepsi-Office
 echo  ========================================
-echo  Office: open that folder -^> START.bat
-echo  ^(First run will npm install — needs internet once^)
+echo  Shortcut created on desktop!
+echo  Double-click to run app (first run shows setup).
 echo.
 pause
