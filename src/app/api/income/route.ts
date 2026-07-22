@@ -33,7 +33,7 @@ function buildPeriod(db: ReturnType<typeof getDb>, from: string, to?: string) {
             COALESCE(SUM(total_discount), 0) as discount,
             COALESCE(SUM(total_bill_expense), 0) as bill_expense,
             COUNT(*) as bills
-     FROM sales WHERE sale_date = ?`,
+     FROM sales WHERE sale_date = ? AND COALESCE(is_historical, 0) = 0`,
     `SELECT COALESCE(SUM(total_amount), 0) as income,
             COALESCE(SUM(paid_amount), 0) as received,
             COALESCE(SUM(bill_bakaya), 0) as pending,
@@ -48,7 +48,7 @@ function buildPeriod(db: ReturnType<typeof getDb>, from: string, to?: string) {
 
   const manualExp = sumBetween(
     db,
-    `SELECT COALESCE(SUM(amount), 0) as v, COUNT(*) as c FROM expenses WHERE expense_date = ?`,
+    `SELECT COALESCE(SUM(amount), 0) as v, COUNT(*) as c FROM expenses WHERE expense_date = ? AND COALESCE(is_historical, 0) = 0`,
     `SELECT COALESCE(SUM(amount), 0) as v, COUNT(*) as c FROM expenses WHERE expense_date >= ? AND expense_date <= ?`,
     from,
     to
@@ -57,7 +57,7 @@ function buildPeriod(db: ReturnType<typeof getDb>, from: string, to?: string) {
   const purchaseExp = sumBetween(
     db,
     `SELECT COALESCE(SUM(total_expense), 0) as v, COALESCE(SUM(total_amount), 0) as purchase
-     FROM purchases WHERE purchase_date = ?`,
+     FROM purchases WHERE purchase_date = ? AND COALESCE(is_historical, 0) = 0`,
     `SELECT COALESCE(SUM(total_expense), 0) as v, COALESCE(SUM(total_amount), 0) as purchase
      FROM purchases WHERE purchase_date >= ? AND purchase_date <= ?`,
     from,

@@ -18,11 +18,11 @@ export async function GET() {
     .get() as { c: number };
 
   const todaySales = db
-    .prepare("SELECT COALESCE(SUM(total_amount), 0) as v FROM sales WHERE sale_date = ?")
+    .prepare("SELECT COALESCE(SUM(total_amount), 0) as v FROM sales WHERE sale_date = ? AND COALESCE(is_historical, 0) = 0")
     .get(today) as { v: number };
 
   const todayPurchase = db
-    .prepare("SELECT COALESCE(SUM(total_amount), 0) as v FROM purchases WHERE purchase_date = ?")
+    .prepare("SELECT COALESCE(SUM(total_amount), 0) as v FROM purchases WHERE purchase_date = ? AND COALESCE(is_historical, 0) = 0")
     .get(today) as { v: number };
 
   const customerBalance = db
