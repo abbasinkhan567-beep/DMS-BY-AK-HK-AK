@@ -9,7 +9,7 @@ echo   PEPSI DISTRIBUTION - START
 echo  ========================================
 echo.
 
-where node >nul 2>nul
+node -v >nul 2>nul
 if errorlevel 1 (
   echo  [ERROR] Node.js missing.
   echo  Install Node 22+ from https://nodejs.org
@@ -18,8 +18,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-for /f "tokens=2 delims=v." %%a in ('node -v') do set MAJOR=%%a
-set /a MAJOR_NUM=%MAJOR% 2>nul
+for /f "tokens=*" %%a in ('node -v') do set FULL=%%a
+set VER=%FULL:~1%
+for /f "tokens=1 delims=." %%b in ("%VER%") do set /a MAJOR_NUM=%%b 2>nul
 echo  Node: 
 node -v
 if %MAJOR_NUM% LSS 22 (
