@@ -9,7 +9,7 @@ echo   PEPSI DISTRIBUTION - START
 echo  ========================================
 echo.
 
-where node >nul 2>nul
+node -v >nul 2>nul
 if errorlevel 1 (
   echo  [ERROR] Node.js missing.
   echo  Install Node 22+ from https://nodejs.org
@@ -18,29 +18,21 @@ if errorlevel 1 (
   exit /b 1
 )
 
-for /f "tokens=2 delims=v." %%a in ('node -v') do set MAJOR=%%a
-set /a MAJOR_NUM=%MAJOR% 2>nul
-echo  Node: 
+echo  Node:
 node -v
-if %MAJOR_NUM% LSS 22 (
-  echo  [ERROR] Node 22 or newer required.
-  start https://nodejs.org
-  pause
-  exit /b 1
-)
 
 set PORT=3000
 
 REM Already running? open browser only
 powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:%PORT%/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
 if %errorlevel%==0 (
-  echo  Already running — opening browser...
+  echo  Already running ??? opening browser...
   start "" http://localhost:%PORT%/login
   exit /b 0
 )
 
 if not exist "node_modules\" (
-  echo  [1/3] Installing packages (first time — wait)...
+  echo  [1/3] Installing packages (first time ??? wait)...
   call npm install
   if errorlevel 1 (
     echo  [ERROR] npm install failed.
@@ -50,7 +42,7 @@ if not exist "node_modules\" (
 )
 
 if not exist ".next\BUILD_ID" (
-  echo  [2/3] Building app (first time — wait)...
+  echo  [2/3] Building app (first time ??? wait)...
   call npm run build
   if errorlevel 1 (
     echo  [ERROR] Build failed.
@@ -81,7 +73,7 @@ goto WAIT
 
 :OK
 echo.
-echo  READY — http://localhost:%PORT%/login
+echo  READY ??? http://localhost:%PORT%/login
 echo  Password: admin123
 echo.
 start "" http://localhost:%PORT%/login
