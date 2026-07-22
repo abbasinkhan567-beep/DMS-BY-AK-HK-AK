@@ -1,6 +1,6 @@
 {
-  "version": "3.0.0",
+  "version": "66.06.0",
   "name": "Pepsi Distribution",
-  "notes": "v3: next.config.mjs (no TypeScript needed), historical filter for today KPIs/daily income, updates installs TypeScript, stale files removed",
+  "notes": "v66.06: auto-update on start, allow-scripts handled, node:sqlite types, sync fixes",
   "updatedAt": "2026-07-22"
 }
