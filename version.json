@@ -1,6 +1,6 @@
 {
-  "version": "1.7.1",
+  "version": "1.8.0",
   "name": "Pepsi Distribution",
-  "notes": "Fix login/dashboard JSON crash (sync schema created_at)",
-  "updatedAt": "2026-07-15"
+  "notes": "Background server, desktop icon, auto git init, sync & updates fix",
+  "updatedAt": "2026-07-22"
 }
