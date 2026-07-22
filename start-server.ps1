@@ -13,9 +13,10 @@ function Write-Msg {
 
 function Check-LastExit {
   param($label)
-  if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+  if ($LASTEXITCODE) {
     Write-Msg "FAILED: $label (exit $LASTEXITCODE)"
-    if ($Setup) { Write-Host "ERROR: $label failed (exit $LASTEXITCODE) — check $log" -ForegroundColor Red }
+    if ($Setup) { Write-Host "ERROR: $label failed - check $log" -ForegroundColor Red }
+    exit 1
   }
 }
 
@@ -48,9 +49,9 @@ if (-not (Test-Path "$base\.next\BUILD_ID")) {
 }
 
 if (-not (Test-Path "$base\.next\BUILD_ID")) {
-  Write-Msg "Build output missing — giving up"
+  Write-Msg "Build output missing - giving up"
   if ($Setup) {
-    Write-Host "ERROR: Build failed — .next/BUILD_ID not found. Check $log" -ForegroundColor Red
+    Write-Host "ERROR: Build failed - .next/BUILD_ID not found. Check $log" -ForegroundColor Red
     Read-Host "Press Enter"
   }
   exit 1
@@ -74,7 +75,6 @@ Write-Msg "Killing old node"
 taskkill /f /im node.exe 2>$null
 Start-Sleep 3
 
-# Check if port 3000 is still in use
 $portCheck = netstat -ano 2>$null | Select-String ":3000 "
 if ($portCheck) {
   Write-Msg "Port 3000 still in use by another process"
@@ -109,18 +109,17 @@ if (-not $ready) {
   Write-Msg "Server did not start in 60s"
   $proc = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
   if (-not $proc) {
-    Write-Msg "Server process exited early — check $log for details or run manually: npm run build && npx next start -p 3000"
+    Write-Msg "Server process exited early - check $log or run: npm run build && next start -p 3000"
   } else {
     Write-Msg "Process $($p.Id) still running but not responding on port 3000"
   }
   if ($Setup) {
     Write-Host ""
     Write-Host "Server did not start. Possible fixes:" -ForegroundColor Yellow
-    Write-Host "  1. Run manually: npm run build" -ForegroundColor White
-    Write-Host "  2. Then: npx next start -p 3000" -ForegroundColor White
+    Write-Host "  1. Run: npm run build" -ForegroundColor White
+    Write-Host "  2. Then: next start -p 3000" -ForegroundColor White
     Write-Host "  3. Check log: $log" -ForegroundColor White
-    Write-Host ""
-    Read-Host "Press Enter"
   }
+  Read-Host "Press Enter"
   exit 1
 }
