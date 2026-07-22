@@ -97,7 +97,14 @@ export async function GET() {
   try {
     info.remoteUrl = run("git remote get-url origin").trim();
     run("git fetch origin main");
-    const localHash = run("git rev-parse HEAD").trim();
+    let localHash = "";
+    try {
+      localHash = run("git rev-parse HEAD").trim();
+    } catch {
+      info.status = "no_commits";
+      info.message = "Fresh install – run Sync first, then check Updates.";
+      return NextResponse.json(info);
+    }
     const remoteHash = run("git rev-parse origin/main").trim();
     info.upToDate = localHash === remoteHash;
     info.status = localHash === remoteHash ? "up_to_date" : "update_available";
