@@ -182,7 +182,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           action: "save",
           deviceName,
-          token: syncToken,
+          ...(syncToken ? { token: syncToken } : {}),
         }),
       });
       const data = await res.json();
@@ -202,7 +202,7 @@ export default function SettingsPage() {
     setErr("");
     setMsg("");
     try {
-      await fetch("/api/sync", {
+      const saveRes = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -211,6 +211,9 @@ export default function SettingsPage() {
           ...(syncToken ? { token: syncToken } : {}),
         }),
       });
+      const saveData = await saveRes.json();
+      if (!saveRes.ok) throw new Error(saveData.error || "Save failed");
+      setSyncInfo(saveData);
       const res = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

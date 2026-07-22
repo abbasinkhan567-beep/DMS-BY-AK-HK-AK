@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     if (action === "save") {
       if (typeof body.deviceName === "string") setDeviceName(body.deviceName);
-      if (typeof body.token === "string") setSyncToken(body.token);
+      if (typeof body.token === "string" && body.token.trim().length > 0) setSyncToken(body.token);
       return NextResponse.json({ ok: true, ...syncStatus() });
     }
 
