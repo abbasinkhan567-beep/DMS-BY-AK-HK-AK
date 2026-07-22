@@ -18,17 +18,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-for /f "tokens=*" %%a in ('node -v') do set FULL=%%a
-set VER=%FULL:~1%
-for /f "tokens=1 delims=." %%b in ("%VER%") do set /a MAJOR_NUM=%%b 2>nul
-echo  Node: 
+echo  Node:
 node -v
-if %MAJOR_NUM% LSS 22 (
-  echo  [ERROR] Node 22 or newer required.
-  start https://nodejs.org
-  pause
-  exit /b 1
-)
 
 set PORT=3000
 
@@ -57,7 +48,7 @@ start "Pepsi Dist Server" /D "%~dp0" /MIN cmd /c "npx next start -p %PORT%"
 
 echo.
 echo  ========================================
-echo   READY ? http://localhost:%PORT%/login
+echo   READY - http://localhost:%PORT%/login
 echo   Password: admin123
 echo  ========================================
 echo.
