@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  devIndicators: false,
+  // Built-in node:sqlite — no native packages to externalize
 };
 
 export default nextConfig;
