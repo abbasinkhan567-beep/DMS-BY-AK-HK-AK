@@ -89,7 +89,16 @@ function hasGit() {
   }
 }
 
+function ensureGitRepo() {
+  if (!fs.existsSync(path.join(process.cwd(), ".git"))) {
+    run("git init -b main");
+    run('git config user.email "pepsi@local"');
+    run('git config user.name "Pepsi Distribution"');
+  }
+}
+
 function getOriginUrl(): string | null {
+  ensureGitRepo();
   try {
     return run("git remote get-url origin").trim() || null;
   } catch {

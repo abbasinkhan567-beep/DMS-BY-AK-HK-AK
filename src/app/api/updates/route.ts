@@ -38,6 +38,11 @@ function hasGit() {
 
 function hasRemote() {
   try {
+    if (!fs.existsSync(path.join(process.cwd(), ".git"))) {
+      run("git init -b main");
+      run('git config user.email "pepsi@local"');
+      run('git config user.name "Pepsi Distribution"');
+    }
     const out = run("git remote get-url origin").trim();
     return Boolean(out);
   } catch {
@@ -64,9 +69,15 @@ export async function GET() {
   }
 
   if (!fs.existsSync(path.join(process.cwd(), ".git"))) {
-    info.status = "no_repo";
-    info.message = "This folder is not a Git repository. Ask the developer to set up GitHub first.";
-    return NextResponse.json(info);
+    try {
+      run("git init -b main");
+      run('git config user.email "pepsi@local"');
+      run('git config user.name "Pepsi Distribution"');
+    } catch {
+      info.status = "no_repo";
+      info.message = "Could not initialize Git repo.";
+      return NextResponse.json(info);
+    }
   }
 
   info.hasRemote = hasRemote();
@@ -113,7 +124,9 @@ export async function POST(req: NextRequest) {
     }
     try {
       if (!fs.existsSync(path.join(process.cwd(), ".git"))) {
-        run("git init");
+        run("git init -b main");
+        run('git config user.email "pepsi@local"');
+        run('git config user.name "Pepsi Distribution"');
       }
       try {
         run(`git remote remove origin`);
