@@ -47,10 +47,21 @@ export async function PUT(req: NextRequest) {
   if (!name || !size) return NextResponse.json({ error: "Name and size required" }, { status: 400 });
 
   const db = getDb();
+  const old = db.prepare("SELECT stock FROM products WHERE id = ?").get(id) as { stock: number } | undefined;
+  if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const diff = Number(stock ?? old.stock) - old.stock;
   db.prepare(
     `UPDATE products SET name=?, size=?, unit=?, purchase_price=?, sale_price=?, stock=?, min_stock=?
      WHERE id=?`
   ).run(name, size, unit, purchase_price, sale_price, stock, min_stock, id);
+
+  if (diff !== 0) {
+    db.prepare(
+      `INSERT INTO stock_adjustments (adjust_date, product_id, old_qty, new_qty, difference, reason)
+       VALUES (date('now','localtime'), ?, ?, ?, ?, 'Manual edit from products page')`
+    ).run(id, old.stock, stock, diff);
+  }
 
   const product = db.prepare("SELECT * FROM products WHERE id = ?").get(id);
   return NextResponse.json(product);

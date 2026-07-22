@@ -43,6 +43,7 @@ export default function ProductsPage() {
   const [form, setForm] = useState(emptyForm);
   const [q, setQ] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
     const res = await fetch("/api/products");
@@ -76,16 +77,21 @@ export default function ProductsPage() {
   async function save(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError("");
     try {
       const method = editing ? "PUT" : "POST";
       const body = editing ? { ...form, id: editing.id } : form;
-      await fetch("/api/products", {
+      const res = await fetch("/api/products", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
       setOpen(false);
       await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
     } finally {
       setSaving(false);
     }
@@ -239,6 +245,7 @@ export default function ProductsPage() {
               onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })}
             />
           </div>
+          {error && <p className="text-sm text-rose-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
