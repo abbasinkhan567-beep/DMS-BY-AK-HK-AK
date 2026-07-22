@@ -101,8 +101,8 @@ export async function GET() {
     try {
       localHash = run("git rev-parse HEAD").trim();
     } catch {
-      info.status = "no_commits";
-      info.message = "Fresh install – run Sync first, then check Updates.";
+      info.status = "update_available";
+      info.message = "Click Apply Updates to install the latest version.";
       return NextResponse.json(info);
     }
     const remoteHash = run("git rev-parse origin/main").trim();
@@ -161,11 +161,22 @@ export async function POST(req: NextRequest) {
     // Keep local data safe - never touch data/*.db (gitignored)
     const before = readVersion();
     let log = "";
+    let hasHead = true;
     try {
-      log += run("git add -A");
-      log += run("git stash push --include-untracked -m pepsi-auto-stash");
+      run("git rev-parse HEAD");
     } catch {
-      log += "stash-skip\n";
+      hasHead = false;
+    }
+    if (hasHead) {
+      try {
+        log += run("git add -A");
+        log += run("git stash push --include-untracked -m pepsi-auto-stash");
+      } catch {
+        log += "stash-skip\n";
+      }
+    } else {
+      log += "no-commits - cleaning untracked files\n";
+      try { run("git clean -fd -e data/"); } catch {}
     }
     log += "\n" + run("git pull --ff-only origin main");
     log += "\n" + run("npm install");
