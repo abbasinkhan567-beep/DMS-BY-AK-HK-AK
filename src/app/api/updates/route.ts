@@ -162,11 +162,12 @@ export async function POST(req: NextRequest) {
     const before = readVersion();
     let log = "";
     try {
-      log += run("git stash push -m pepsi-auto-stash");
+      log += run("git add -A");
+      log += run("git stash push --include-untracked -m pepsi-auto-stash");
     } catch {
       log += "stash-skip\n";
     }
-    log += "\n" + run("git pull origin main");
+    log += "\n" + run("git pull --ff-only origin main");
     log += "\n" + run("npm install");
     log += "\n" + run("npm run build");
     const after = readVersion();
