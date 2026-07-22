@@ -1,25 +1,51 @@
-PEPSI DISTRIBUTION — START HERE
-================================
+PEPSI DISTRIBUTION MANAGEMENT SYSTEM
+=====================================
 
-NEED: Node.js 22+  (https://nodejs.org)   and   Git (https://git-scm.com)
+REQUIREMENTS:
+  - Node.js 22+  (https://nodejs.org)
+  - Git          (https://git-scm.com)   — only needed for Sync / Updates
 
-DEVELOPER PC (this folder: F:\pepsi project)
---------------------------------------------
-1) Double-click  START.bat
-2) Login: admin123
-3) Settings password: settings123
-4) Edit code in VS Code → test with START.bat
-5) Push updates:  PUBLISH.bat
-6) Make office copy:  MAKE-OFFICE.bat  → creates F:\Pepsi-Office
+─────────────────────────────────────────────
+ DEVELOPER PC  (where you edit code)
+─────────────────────────────────────────────
+1. Download or git clone:  git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
+2. Double-click  START.bat     (first run installs packages + builds app)
+3. Login:  admin123
+4. Edit code in VS Code → test with START.bat
+5. Publish updates:    PUBLISH.bat        (pushes code to GitHub)
+6. Make Office folder: MAKE-OFFICE.bat    (creates C:\Pepsi-Office)
 
-OFFICE PC
----------
-1) Use folder F:\Pepsi-Office  (from MAKE-OFFICE / USB)
-   OR:  git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
-2) Double-click  START.bat
-3) Login admin123 → Settings → Sync (PC name Office + GitHub token) → Sync Now
-4) New software: Settings → Updates → Apply
+Files in this folder:
+  START.bat           Launch the app
+  PUBLISH.bat         Push code changes to GitHub
+  MAKE-OFFICE.bat     Create ready-to-run folder for Office PC
+  MAKE-SHORTCUT.vbs   Create desktop shortcut manually
+  BACKUP-NOW.bat      Manual database backup
+  version.json        Current version number
 
-GITHUB
-------
-https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK
+─────────────────────────────────────────────
+ OFFICE PC  (runs the app — no coding)
+─────────────────────────────────────────────
+1. Copy the C:\Pepsi-Office folder from Developer (via USB / network / MAKE-OFFICE.bat)
+   OR git clone on Office PC:  git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
+2. Double-click  START.bat
+3. Login:  admin123
+4. Settings → Sync tab:
+   - PC name:  Office
+   - GitHub token:  paste your token  →  Save
+   - Click  Sync Now     (data will sync between Developer + Office PCs)
+5. New updates:  Settings → Updates → Apply
+
+─────────────────────────────────────────────
+ SYNC SETUP (for GitHub token)
+─────────────────────────────────────────────
+1. Go to https://github.com/settings/tokens  →  Generate new token (classic)
+2. Check only:  repo (full control)
+3. Copy the token → Settings → Sync tab → paste → Save → Sync Now
+
+─────────────────────────────────────────────
+ DEFAULT PASSWORDS
+─────────────────────────────────────────────
+  Login password:    admin123
+  Settings password: settings123
+  (Change in Settings → Password tab)

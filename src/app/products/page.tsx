@@ -139,7 +139,7 @@ export default function ProductsPage() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">
-                            {p.name.charAt(0)}
+                            {(p.name || "?").charAt(0)}
                           </span>
                           <span className="font-semibold text-slate-800">{p.name}</span>
                         </div>

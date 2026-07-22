@@ -1,6 +1,6 @@
 {
-  "version": "1.8.0",
+  "version": "2.0.0",
   "name": "Pepsi Distribution",
-  "notes": "Background server, desktop icon, auto git init, sync & updates fix",
+  "notes": "Final cleanup: zero build errors, bug fixes, sync merge, extra files removed, modal Escape/backdrop close",
   "updatedAt": "2026-07-22"
 }

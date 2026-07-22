@@ -63,6 +63,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
   const { id, expense_date, category, title, amount, paid_from, salesman_id, notes } = body;
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+  if (!title) return NextResponse.json({ error: "Title required" }, { status: 400 });
 
   const db = getDb();
   db.prepare(

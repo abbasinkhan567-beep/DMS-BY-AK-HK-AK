@@ -221,7 +221,7 @@ export default function PurchasesPage() {
         body: JSON.stringify({
           ...(editingId ? { id: editingId } : {}),
           ...form,
-          paid_amount: form.paid_amount || total,
+          paid_amount: form.paid_amount !== undefined ? Number(form.paid_amount) : total,
           historical,
           items: validItems,
         }),

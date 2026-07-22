@@ -71,9 +71,10 @@ function buildPeriod(db: ReturnType<typeof getDb>, from: string, to?: string) {
   const manual_expense = Number(manualExp.v) || 0;
   const purchase_expense = Number(purchaseExp.v) || 0;
 
-  // All expenses connected to income (discount + bill expenses + purchase expenses + manual + commission cost)
-  const expense =
-    manual_expense + discount + bill_expense + purchase_expense + commission;
+  const purchase_total = Number(purchaseExp.purchase) || 0;
+
+  const expense = manual_expense + discount + bill_expense + commission;
+  const total_expense = expense + purchase_total;
 
   return {
     income,
@@ -87,9 +88,9 @@ function buildPeriod(db: ReturnType<typeof getDb>, from: string, to?: string) {
     bills: Number(sales.bills) || 0,
     expense,
     expense_count: Number(manualExp.c) || 0,
-    purchase: Number(purchaseExp.purchase) || 0,
+    purchase: purchase_total,
     net_income: income - expense,
-    net_after_purchase: income - expense - (Number(purchaseExp.purchase) || 0),
+    net_after_purchase: income - total_expense,
   };
 }
 

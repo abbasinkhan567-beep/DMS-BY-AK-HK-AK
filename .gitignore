@@ -4,7 +4,6 @@ data/*.db
 data/*.db-*
 data/backups/
 .pepsi-cloud-sync/
-scripts/bin/
 *.log
 build-log.txt
 tsconfig.tsbuildinfo

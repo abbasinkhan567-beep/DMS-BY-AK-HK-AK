@@ -115,13 +115,16 @@ export default function IncomePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/income")
-      .then(async (r) => {
-        const json = await readJson<IncomeData>(r);
-        if (!r.ok) throw new Error("Failed to load income data");
+    (async () => {
+      try {
+        const res = await fetch("/api/income");
+        const json = await readJson<IncomeData & { error?: string }>(res);
+        if (!res.ok) throw new Error(json.error || "Failed to load income data");
         setData(json);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load");
+      }
+    })();
   }, []);
 
   if (error) {

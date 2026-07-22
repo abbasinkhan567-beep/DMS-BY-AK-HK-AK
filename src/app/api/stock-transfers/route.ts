@@ -88,6 +88,12 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
-  getDb().prepare("DELETE FROM stock_transfers WHERE id = ?").run(id);
+  const db = getDb();
+  const transfer = db.prepare("SELECT * FROM stock_transfers WHERE id = ?").get(id) as
+    | { product_id: number; from_location: string }
+    | undefined;
+  if (!transfer) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  db.prepare("UPDATE products SET location = ? WHERE id = ?").run(transfer.from_location, transfer.product_id);
+  db.prepare("DELETE FROM stock_transfers WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

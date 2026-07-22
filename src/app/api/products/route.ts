@@ -43,9 +43,8 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
   const { id, name, size, unit, purchase_price, sale_price, stock, min_stock } = body;
 
-  if (!id) {
-    return NextResponse.json({ error: "ID required" }, { status: 400 });
-  }
+  if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+  if (!name || !size) return NextResponse.json({ error: "Name and size required" }, { status: 400 });
 
   const db = getDb();
   db.prepare(

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 type ModalProps = {
@@ -12,10 +12,24 @@ type ModalProps = {
 };
 
 export function Modal({ open, title, onClose, children, wide }: ModalProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 pt-10 backdrop-blur-[2px] sm:pt-16">
-      <div className={`w-full rounded-2xl bg-surface-card shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"}`}>
+    <div
+      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 pt-10 backdrop-blur-[2px] sm:pt-16"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div ref={ref} className={`w-full rounded-2xl bg-surface-card shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"}`}>
         <div className="flex items-center justify-between border-b border-edge px-5 py-4">
           <h2 className="text-lg font-semibold text-ink">{title}</h2>
           <button

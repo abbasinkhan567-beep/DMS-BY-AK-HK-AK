@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest) {
   db.prepare(
     `UPDATE accounts SET name=?, account_type=?, phone=?, opening_balance=?, balance=balance+?, notes=?
      WHERE id=?`
-  ).run(name, account_type, phone || null, opening_balance ?? 0, delta, notes || null, id);
+  ).run(name, account_type, phone || null, newOpening, delta, notes || null, id);
 
   return NextResponse.json(db.prepare("SELECT * FROM accounts WHERE id = ?").get(id));
 }
