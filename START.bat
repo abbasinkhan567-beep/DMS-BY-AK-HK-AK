@@ -11,7 +11,7 @@ echo.
 
 node -v >nul 2>nul
 if errorlevel 1 (
-  echo  [ERROR] Node.js missing.
+  echo  [ERROR] Node.js missing or not in PATH.
   echo  Install Node 22+ from https://nodejs.org
   start https://nodejs.org
   pause
@@ -32,9 +32,9 @@ if %MAJOR_NUM% LSS 22 (
 
 set PORT=3000
 
-REM Already running? open browser only
-powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:%PORT%/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
-if %errorlevel%==0 (
+REM Check if already running (using node instead of powershell)
+node -e "http=require('http');http.get('http://localhost:%PORT%/login',r=>{process.exit(r.statusCode==200?0:1)}).on('error',()=>process.exit(1))" >nul 2>nul
+if not errorlevel 1 (
   echo  Already running — opening browser...
   start "" http://localhost:%PORT%/login
   exit /b 0
@@ -63,15 +63,17 @@ if not exist ".next\BUILD_ID" (
 echo  [3/3] Starting server on port %PORT%...
 start "Pepsi Dist Server" /D "%~dp0" /MIN cmd /c "npx next start -p %PORT%"
 
-echo  Waiting for app...
+echo  Waiting for app to start...
 set /a tries=0
 :WAIT
 set /a tries+=1
 timeout /t 2 /nobreak >nul
-powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri http://localhost:%PORT%/login -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){exit 0}else{exit 1} } catch { exit 1 }"
-if %errorlevel%==0 goto OK
-if %tries% Geq 25 (
-  echo  [ERROR] Server did not start. Check npm-debug.log or run manually:
+node -e "http=require('http');http.get('http://localhost:%PORT%/login',r=>{process.exit(r.statusCode==200?0:1)}).on('error',()=>process.exit(1))" >nul 2>nul
+if errorlevel 1 goto WAIT2
+goto OK
+:WAIT2
+if %tries% geq 25 (
+  echo  [ERROR] Server did not start. Run manually:
   echo    cd /d "%~dp0"
   echo    npm run build
   echo    npx next start -p %PORT%
@@ -82,8 +84,11 @@ goto WAIT
 
 :OK
 echo.
-echo  READY — http://localhost:%PORT%/login
-echo  Password: admin123
+echo  ========================================
+echo   READY — http://localhost:%PORT%/login
+echo   Password: admin123
+echo  ========================================
 echo.
 start "" http://localhost:%PORT%/login
+pause
 exit /b 0
