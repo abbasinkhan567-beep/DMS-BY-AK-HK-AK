@@ -155,7 +155,7 @@ if (-not $ready) {
     Write-Host "  1. Run: npm run build" -ForegroundColor White
     Write-Host "  2. Then: next start -p 3000" -ForegroundColor White
     Write-Host "  3. Check log: $log" -ForegroundColor White
+    Read-Host "Press Enter"
   }
-  Read-Host "Press Enter"
   exit 1
 }

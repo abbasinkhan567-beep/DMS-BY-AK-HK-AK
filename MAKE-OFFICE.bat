@@ -93,8 +93,8 @@ git remote add origin https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
 echo  .setup-done > "%DEST%\.setup-done" 2>nul
 cd /d "%~dp0"
 
-REM Desktop shortcut
-powershell -NoProfile -Command "$ws=New-Object -ComObject WScript.Shell; $sc=$ws.CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Pepsi Distribution.lnk'); $sc.TargetPath='powershell.exe'; $sc.Arguments='-WindowStyle Hidden -ExecutionPolicy RemoteSigned -File """%DEST%\start-server.ps1"""'; $sc.WorkingDirectory='%DEST%'; $sc.Description='Pepsi Distribution Management System'; $ico='%DEST%\public\icon.ico'; if(Test-Path $ico){$sc.IconLocation=$ico}; $sc.Save()"
+REM Desktop shortcut (uses VBS launcher for zero-window startup)
+powershell -NoProfile -Command "$ws=New-Object -ComObject WScript.Shell; $sc=$ws.CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Pepsi Distribution.lnk'); $sc.TargetPath='wscript.exe'; $sc.Arguments='"""%DEST%\launcher.vbs"""'; $sc.WorkingDirectory='%DEST%'; $sc.Description='Pepsi Distribution Management System'; $ico='%DEST%\public\icon.ico'; if(Test-Path $ico){$sc.IconLocation=$ico}; $sc.Save()"
 
 REM Office should not ship developer publish tooling
 if exist "%DEST%\PUBLISH.bat" del /f /q "%DEST%\PUBLISH.bat"
