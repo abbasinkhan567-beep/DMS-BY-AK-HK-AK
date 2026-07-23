@@ -1,6 +1,6 @@
 {
-  "version": "66.07.0",
+  "version": "80.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v66.07: paper/old records add edit, delete, print options with inline modal for expenses",
+  "notes": "v80.0: paper/old records edit/delete/print, Office PC build fixes, auto-rebuild on update",
   "updatedAt": "2026-07-24"
 }
