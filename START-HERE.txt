@@ -13,7 +13,7 @@ REQUIREMENTS:
 3. Login:  admin123
 4. Edit code in VS Code → test with START.bat
 5. Publish updates:    PUBLISH.bat        (pushes code to GitHub)
-6. Make Office folder: MAKE-OFFICE.bat    (creates C:\Pepsi-Office)
+6. Make Office folder: MAKE-OFFICE.bat    (creates A:\Pepsi-Office)
 
 Files in this folder:
   START.bat           Launch the app
@@ -25,7 +25,7 @@ Files in this folder:
 ─────────────────────────────────────────────
  OFFICE PC  (runs the app — no coding)
 ─────────────────────────────────────────────
-1. Copy the C:\Pepsi-Office folder from Developer (via USB / network / MAKE-OFFICE.bat)
+1. Copy the A:\Pepsi-Office folder from Developer (via USB / network / MAKE-OFFICE.bat)
    OR git clone on Office PC:  git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git
 2. Double-click  START.bat
 3. Login:  admin123
@@ -49,5 +49,5 @@ Files in this folder:
   Settings password: settings123
   (Change in Settings → Password tab)
 
-git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git "C:\Pepsi-Office"
-cd "C:\Pepsi-Office"
+git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git "A:\Pepsi-Office"
+cd "A:\Pepsi-Office"

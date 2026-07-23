@@ -7,7 +7,7 @@ echo.
 echo  ========================================
 echo   MAKE OFFICE PACKAGE
 echo  ========================================
-echo  Creates: C:\Pepsi-Office
+echo  Creates: A:\Pepsi-Office
 echo  Office user only needs START.bat
 echo.
 
@@ -33,7 +33,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-set DEST=C:\Pepsi-Office
+set DEST=A:\Pepsi-Office
 if not exist "%DEST%" mkdir "%DEST%"
 
 echo  Copying files to %DEST% ...
@@ -103,7 +103,7 @@ if exist "%DEST%\START-HERE.txt" del /f /q "%DEST%\START-HERE.txt"
 
 echo.
 echo  ========================================
-echo   DONE: C:\Pepsi-Office
+echo   DONE: A:\Pepsi-Office
 echo  ========================================
 echo  Shortcut created on desktop!
 echo  Double-click to run app (first run shows setup).
