@@ -12,3 +12,4 @@ tsconfig.tsbuildinfo
 *.lnk
 .setup-done
 data/server-pid.txt
+data/.auth-secret

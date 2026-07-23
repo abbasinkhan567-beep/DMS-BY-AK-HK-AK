@@ -1,6 +1,6 @@
 {
-  "version": "80.0.0",
+  "version": "1.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v80.0: paper/old records edit/delete/print, Office PC build fixes, auto-rebuild on update",
+  "notes": "v1.0: clean production version - paper edit/delete/print, robust Office PC deployment, persistent auth secret",
   "updatedAt": "2026-07-24"
 }

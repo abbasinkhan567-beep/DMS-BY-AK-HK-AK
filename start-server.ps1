@@ -110,10 +110,18 @@ if ($portCheck) {
 }
 
 Write-Msg "Starting server"
+$secretFile = "$base\data\.auth-secret"
+if (-not (Test-Path $secretFile)) {
+  $random = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 48 | ForEach-Object { [char]$_ })
+  $random | Out-File $secretFile -Encoding ascii
+  Write-Msg "Generated auth secret"
+}
+$secret = (Get-Content $secretFile -Raw).Trim()
 $nextBin = "$base\node_modules\.bin\next.cmd"
 if (-not (Test-Path $nextBin)) { $nextBin = "npx --yes next" }
-$p = Start-Process -WindowStyle Hidden -PassThru -FilePath cmd -ArgumentList "/c `"$nextBin`" start -p 3000"
-$p.Id | Out-File "$base\data\server-pid.txt"
+$env:PEPSI_AUTH_SECRET = $secret
+$p = Start-Process -WindowStyle Hidden -PassThru -FilePath cmd -ArgumentList "/c set PEPSI_AUTH_SECRET=$secret&& `"$nextBin`" start -p 3000"
+$p.Id | Out-File "$base\data\server-pid.txt" -Encoding ascii
 Write-Msg "Server PID: $($p.Id)"
 
 Write-Msg "Waiting for server..."

@@ -48,3 +48,6 @@ Files in this folder:
   Login password:    admin123
   Settings password: settings123
   (Change in Settings → Password tab)
+
+git clone https://github.com/abbasinkhan567-beep/DMS-BY-AK-HK-AK.git "C:\Pepsi-Office"
+cd "C:\Pepsi-Office"

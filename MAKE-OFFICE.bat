@@ -77,6 +77,10 @@ echo.
 echo Do NOT use PUBLISH here. That is only on Developer PC.
 ) > "%DEST%\README-OFFICE.txt"
 
+REM Pre-generate auth secret for persistent sessions
+echo  Generating auth secret...
+powershell -NoProfile -Command "$s=-join ((65..90)+(97..122)+(48..57)|Get-Random -Count 48|%%{[char]$_}); $s|Out-File '%DEST%\data\.auth-secret' -Encoding ascii"
+
 REM Setup git repo so Updates and Sync work out of the box
 echo  Setting up git repo...
 cd /d "%DEST%"
