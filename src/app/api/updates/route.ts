@@ -180,10 +180,12 @@ export async function POST(req: NextRequest) {
     }
     log += "\n" + run("git fetch origin main");
     log += "\n" + run("git checkout -B main origin/main");
-    log += "\n" + run("git clean -fd -e data/");
+    log += "\n" + run("git clean -fd -e data/ -e .next/");
     log += "\n" + run("npm install");
     try { log += "\n" + run("npm approve-scripts --allow-scripts-pending 2>nul"); } catch { log += "\nallow-scripts-skip\n"; }
-    log += "\n" + run("npm install -D typescript --no-save");
+    if (fs.existsSync(path.join(process.cwd(), ".next"))) {
+      fs.rmSync(path.join(process.cwd(), ".next"), { recursive: true, force: true });
+    }
     log += "\n" + run("npm run build");
     const after = readVersion();
 

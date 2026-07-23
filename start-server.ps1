@@ -34,14 +34,21 @@ try {
 
 # Auto-update: fetch latest code from GitHub if git repo exists
 $hasGitRepo = Test-Path "$base\.git"
+$updated = $false
 if ($hasGitRepo) {
   try {
     $remote = git remote get-url origin 2>$null
     if ($remote) {
       Write-Msg "Auto-update: fetching latest code..."
       git fetch origin main 2>&1 | Out-File $log -Append
+      $local = git rev-parse HEAD 2>$null
       git checkout -B main origin/main 2>&1 | Out-File $log -Append
       git clean -fd -e data/ 2>&1 | Out-File $log -Append
+      $new = git rev-parse HEAD 2>$null
+      if ($local -ne $new) {
+        Write-Msg "Code changed, will rebuild"
+        $updated = $true
+      }
       Write-Msg "Auto-update done"
     }
   } catch {
@@ -49,7 +56,7 @@ if ($hasGitRepo) {
   }
 }
 
-if (-not (Test-Path "$base\node_modules")) {
+if ($updated -or -not (Test-Path "$base\node_modules")) {
   Write-Msg "Installing packages..."
   if ($Setup) { Write-Host "Running: npm install" }
   npm install 2>&1 | Out-File $log -Append
@@ -60,7 +67,8 @@ if (-not (Test-Path "$base\node_modules")) {
 # Handle allow-scripts if needed
 try { npm approve-scripts --allow-scripts-pending 2>$null | Out-File $log -Append } catch {}
 
-if (-not (Test-Path "$base\.next\BUILD_ID")) {
+if ($updated -or -not (Test-Path "$base\.next\BUILD_ID")) {
+  if (Test-Path "$base\.next") { Remove-Item -Recurse -Force "$base\.next" }
   Write-Msg "Building app..."
   if ($Setup) { Write-Host "Running: npm run build (may take 1-2 min)..." }
   npm run build 2>&1 | Out-File $log -Append
