@@ -1,6 +1,6 @@
 {
-  "version": "66.06.0",
+  "version": "66.07.0",
   "name": "Pepsi Distribution",
-  "notes": "v66.06: auto-update on start, allow-scripts handled, node:sqlite types, sync fixes",
-  "updatedAt": "2026-07-22"
+  "notes": "v66.07: paper/old records add edit, delete, print options with inline modal for expenses",
+  "updatedAt": "2026-07-24"
 }

@@ -6,12 +6,15 @@ import {
   CalendarDays,
   CheckCircle2,
   FileText,
+  Pencil,
+  Plus,
   ShoppingCart,
+  Trash2,
   Truck,
   Wallet,
 } from "lucide-react";
-import { formatDate, formatMoney } from "@/lib/utils";
-import { Button, Card, Input, PageHeader, TextArea } from "@/components/ui";
+import { formatDate, formatMoney, printHtml } from "@/lib/utils";
+import { Button, Card, Input, Modal, PageHeader, Select, TextArea } from "@/components/ui";
 
 type DaySummary = {
   sales_count: number;
@@ -26,9 +29,9 @@ type DayDetail = {
   date: string;
   paper: { status: string; notes: string | null } | null;
   summary: DaySummary;
-  sales: Array<{ id: number; customer_name: string; total_amount: number; is_historical?: number }>;
-  purchases: Array<{ id: number; supplier: string; total_amount: number; is_historical?: number }>;
-  expenses: Array<{ id: number; title: string; amount: number; is_historical?: number }>;
+  sales: Array<{ id: number; invoice_no: string | null; customer_name: string; total_amount: number; paid_amount: number; is_historical?: number }>;
+  purchases: Array<{ id: number; invoice_no: string | null; supplier: string; total_amount: number; paid_amount: number; is_historical?: number }>;
+  expenses: Array<{ id: number; title: string; amount: number; category: string; expense_date: string; is_historical?: number }>;
 };
 
 type RecentRow = {
@@ -46,6 +49,10 @@ export default function PaperEntryPage() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ title: "", amount: 0, category: "General", notes: "", expense_date: "" });
+  const [editId, setEditId] = useState<number | null>(null);
 
   const loadDay = useCallback(async (d: string) => {
     setErr("");
@@ -91,6 +98,82 @@ export default function PaperEntryPage() {
       await loadRecent();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteEntry(type: "sales" | "purchases" | "expenses", id: number) {
+    if (!confirm(`Delete this ${type.slice(0, -1)} record?`)) return;
+    try {
+      const res = await fetch(`/api/${type}?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setMsg(`${type.slice(0, -1)} deleted.`);
+      await loadDay(date);
+      await loadRecent();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Delete error");
+    }
+  }
+
+  function printEntry(type: string, entry: Record<string, unknown>) {
+    const dateStr = formatDate(String(entry.expense_date || entry.sale_date || entry.purchase_date || date));
+    if (type === "expenses") {
+      printHtml(
+        `Expense ${entry.id}`,
+        `<h1>Expense Voucher</h1>
+         <h2>#${entry.id} · ${dateStr}</h2>
+         <div class="meta">
+           <div>Title: <strong>${entry.title}</strong><br/>Category: ${entry.category || "-"}</div>
+           <div>Amount: <strong>${formatMoney(Number(entry.amount))}</strong></div>
+         </div>`
+      );
+    } else if (type === "sales") {
+      printHtml(
+        `Sale ${entry.id}`,
+        `<h1>Sale Invoice</h1>
+         <h2>#${entry.id} · ${dateStr}</h2>
+         <div class="meta">
+           <div>Customer: <strong>${entry.customer_name}</strong><br/>Invoice: ${entry.invoice_no || "-"}</div>
+           <div>Total: <strong>${formatMoney(Number(entry.total_amount))}</strong><br/>Paid: ${formatMoney(Number(entry.paid_amount))}</div>
+         </div>`
+      );
+    } else {
+      printHtml(
+        `Purchase ${entry.id}`,
+        `<h1>Purchase Voucher</h1>
+         <h2>#${entry.id} · ${dateStr}</h2>
+         <div class="meta">
+           <div>Supplier: <strong>${entry.supplier}</strong><br/>Invoice: ${entry.invoice_no || "-"}</div>
+           <div>Total: <strong>${formatMoney(Number(entry.total_amount))}</strong><br/>Paid: ${formatMoney(Number(entry.paid_amount))}</div>
+         </div>`
+      );
+    }
+  }
+
+  function openEditExpense(exp: DayDetail["expenses"][number]) {
+    setEditId(exp.id);
+    setEditForm({ title: exp.title, amount: exp.amount, category: exp.category || "General", notes: "", expense_date: exp.expense_date });
+    setEditOpen(true);
+  }
+
+  async function saveExpenseEdit() {
+    if (!editId) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editId, ...editForm }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setEditOpen(false);
+      setEditId(null);
+      setMsg("Expense updated.");
+      await loadDay(date);
+      await loadRecent();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Save error");
     } finally {
       setSaving(false);
     }
@@ -191,30 +274,79 @@ export default function PaperEntryPage() {
         </Card>
 
         <Card title="Entered on this date">
-          <div className="max-h-72 space-y-3 overflow-y-auto p-5 text-sm">
+          <div className="max-h-80 space-y-2 overflow-y-auto p-3 text-sm">
             {!detail ||
             (detail.sales.length === 0 &&
               detail.purchases.length === 0 &&
               detail.expenses.length === 0) ? (
-              <p className="text-muted">Nothing entered for this date yet.</p>
+              <p className="p-3 text-muted">Nothing entered for this date yet.</p>
             ) : (
               <>
                 {detail.sales.map((s) => (
-                  <div key={`s-${s.id}`} className="flex justify-between gap-2 border-b border-edge pb-2">
-                    <span className="text-ink">Sale · {s.customer_name}</span>
-                    <span className="font-semibold">{formatMoney(s.total_amount)}</span>
+                  <div key={`s-${s.id}`} className="rounded-xl border border-edge p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-ink truncate">Sale · {s.customer_name}</p>
+                        <p className="text-xs text-muted">#{s.id} · {formatMoney(s.total_amount)}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Link href={`/sales`}>
+                          <Button variant="ghost" className="!px-2 !py-1" title="Edit">
+                            <Pencil size={14} />
+                          </Button>
+                        </Link>
+                        <Button variant="ghost" className="!px-2 !py-1" onClick={() => printEntry("sales", s)} title="Print">
+                          <FileText size={14} />
+                        </Button>
+                        <Button variant="ghost" className="!px-2 !py-1 text-rose-500" onClick={() => deleteEntry("sales", s.id)} title="Delete">
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ))}
                 {detail.purchases.map((p) => (
-                  <div key={`p-${p.id}`} className="flex justify-between gap-2 border-b border-edge pb-2">
-                    <span className="text-ink">Purchase · {p.supplier}</span>
-                    <span className="font-semibold">{formatMoney(p.total_amount)}</span>
+                  <div key={`p-${p.id}`} className="rounded-xl border border-edge p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-ink truncate">Purchase · {p.supplier}</p>
+                        <p className="text-xs text-muted">#{p.id} · {formatMoney(p.total_amount)}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Link href={`/purchases`}>
+                          <Button variant="ghost" className="!px-2 !py-1" title="Edit">
+                            <Pencil size={14} />
+                          </Button>
+                        </Link>
+                        <Button variant="ghost" className="!px-2 !py-1" onClick={() => printEntry("purchases", p)} title="Print">
+                          <FileText size={14} />
+                        </Button>
+                        <Button variant="ghost" className="!px-2 !py-1 text-rose-500" onClick={() => deleteEntry("purchases", p.id)} title="Delete">
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ))}
                 {detail.expenses.map((e) => (
-                  <div key={`e-${e.id}`} className="flex justify-between gap-2 border-b border-edge pb-2">
-                    <span className="text-ink">Expense · {e.title}</span>
-                    <span className="font-semibold">{formatMoney(e.amount)}</span>
+                  <div key={`e-${e.id}`} className="rounded-xl border border-edge p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-ink truncate">Expense · {e.title}</p>
+                        <p className="text-xs text-muted">#{e.id} · {formatMoney(e.amount)}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Button variant="ghost" className="!px-2 !py-1" onClick={() => openEditExpense(e)} title="Edit">
+                          <Pencil size={14} />
+                        </Button>
+                        <Button variant="ghost" className="!px-2 !py-1" onClick={() => printEntry("expenses", e)} title="Print">
+                          <FileText size={14} />
+                        </Button>
+                        <Button variant="ghost" className="!px-2 !py-1 text-rose-500" onClick={() => deleteEntry("expenses", e.id)} title="Delete">
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </>
@@ -222,6 +354,40 @@ export default function PaperEntryPage() {
           </div>
         </Card>
       </div>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Expense">
+        <div className="space-y-3">
+          <Input
+            label="Title"
+            required
+            value={editForm.title}
+            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Amount"
+              type="number"
+              min={0}
+              value={editForm.amount}
+              onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
+            />
+            <Input
+              label="Category"
+              value={editForm.category}
+              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+            />
+          </div>
+          <TextArea
+            label="Notes"
+            value={editForm.notes}
+            onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={saveExpenseEdit} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="mt-4">
         <Card title="Recent dates with data">
