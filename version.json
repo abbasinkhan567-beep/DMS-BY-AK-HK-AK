@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v1.0: clean production version - paper edit/delete/print, robust Office PC deployment, persistent auth secret",
-  "updatedAt": "2026-07-24"
+  "notes": "v2.0: soft-delete fix (deleted items no longer reappear), backup delete button, reset all button in settings, deleted_records sync tracking",
+  "updatedAt": "2026-07-25"
 }

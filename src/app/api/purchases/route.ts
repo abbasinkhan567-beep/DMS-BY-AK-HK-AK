@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     .prepare(
       `SELECT p.*,
         (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) as item_count
-       FROM purchases p ORDER BY p.id DESC`
+       FROM purchases p WHERE (p.deleted IS NULL OR p.deleted = 0) ORDER BY p.id DESC`
     )
     .all();
   return NextResponse.json(purchases);
@@ -282,8 +282,12 @@ export async function DELETE(req: NextRequest) {
           "UPDATE products SET stock = CASE WHEN stock >= ? THEN stock - ? ELSE 0 END WHERE id = ?"
         ).run(item.quantity, item.quantity, item.product_id);
       }
-      db.prepare("DELETE FROM purchase_items WHERE purchase_id = ?").run(id);
-      db.prepare("DELETE FROM purchases WHERE id = ?").run(id);
+      const syncId = (db.prepare("SELECT sync_id FROM purchases WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+      if (syncId) {
+        db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+      }
+      db.prepare("UPDATE purchase_items SET deleted = 1 WHERE purchase_id = ?").run(id);
+      db.prepare("UPDATE purchases SET deleted = 1 WHERE id = ?").run(id);
     });
     tx();
     return NextResponse.json({ ok: true });

@@ -8,6 +8,7 @@ export async function GET() {
       `SELECT sa.*, p.name as product_name, p.size as product_size
        FROM stock_adjustments sa
        JOIN products p ON p.id = sa.product_id
+       WHERE (sa.deleted IS NULL OR sa.deleted = 0)
        ORDER BY sa.id DESC`
     )
     .all();
@@ -69,11 +70,15 @@ export async function DELETE(req: NextRequest) {
   try {
     const tx = db.transaction(() => {
       const row = db.prepare("SELECT * FROM stock_adjustments WHERE id = ?").get(id) as
-        | { product_id: number; old_qty: number }
+        | { product_id: number; old_qty: number; sync_id?: string }
         | undefined;
       if (!row) throw new Error("Not found");
       db.prepare("UPDATE products SET stock = ? WHERE id = ?").run(row.old_qty, row.product_id);
-      db.prepare("DELETE FROM stock_adjustments WHERE id = ?").run(id);
+      const syncId = row.sync_id as string | undefined;
+      if (syncId) {
+        db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+      }
+      db.prepare("UPDATE stock_adjustments SET deleted = 1 WHERE id = ?").run(id);
     });
     tx();
     return NextResponse.json({ ok: true });

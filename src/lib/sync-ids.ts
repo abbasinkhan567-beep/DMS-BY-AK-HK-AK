@@ -264,7 +264,7 @@ export function productMovementNet(db: PepsiDb, productId: number): number {
         `SELECT COALESCE(SUM(pi.quantity), 0) as q
          FROM purchase_items pi
          JOIN purchases p ON p.id = pi.purchase_id
-         WHERE pi.product_id = ? AND COALESCE(p.is_historical, 0) = 0`
+         WHERE (pi.deleted IS NULL OR pi.deleted = 0) AND pi.product_id = ? AND COALESCE(p.is_historical, 0) = 0`
       )
       .get(productId) as { q: number }
   ).q;
@@ -275,7 +275,7 @@ export function productMovementNet(db: PepsiDb, productId: number): number {
         `SELECT COALESCE(SUM(si.quantity), 0) as q
          FROM sale_items si
          JOIN sales s ON s.id = si.sale_id
-         WHERE si.product_id = ? AND COALESCE(s.is_historical, 0) = 0`
+         WHERE (si.deleted IS NULL OR si.deleted = 0) AND si.product_id = ? AND COALESCE(s.is_historical, 0) = 0`
       )
       .get(productId) as { q: number }
   ).q;
@@ -283,7 +283,7 @@ export function productMovementNet(db: PepsiDb, productId: number): number {
   const adj = (
     db
       .prepare(
-        `SELECT COALESCE(SUM(difference), 0) as q FROM stock_adjustments WHERE product_id = ?`
+        `SELECT COALESCE(SUM(difference), 0) as q FROM stock_adjustments WHERE (deleted IS NULL OR deleted = 0) AND product_id = ?`
       )
       .get(productId) as { q: number }
   ).q;
@@ -292,7 +292,7 @@ export function productMovementNet(db: PepsiDb, productId: number): number {
 }
 
 export function recalculateStockAndBalances(db: PepsiDb) {
-  const products = db.prepare("SELECT id, stock FROM products").all() as Array<{
+  const products = db.prepare("SELECT id, stock FROM products WHERE (deleted IS NULL OR deleted = 0)").all() as Array<{
     id: number;
     stock: number;
   }>;
@@ -305,23 +305,23 @@ export function recalculateStockAndBalances(db: PepsiDb) {
     const opening = openings.get(p.id) ?? 0;
     const stock = opening + productMovementNet(db, p.id);
     db.prepare(
-      `UPDATE products SET stock = ?, updated_at = datetime('now','localtime') WHERE id = ?`
+        `UPDATE products SET stock = ?, updated_at = datetime('now','localtime') WHERE id = ? AND (deleted IS NULL OR deleted = 0)`
     ).run(stock, p.id);
   }
 
-  const customers = db.prepare("SELECT id FROM customers").all() as Array<{ id: number }>;
+  const customers = db.prepare("SELECT id FROM customers WHERE (deleted IS NULL OR deleted = 0)").all() as Array<{ id: number }>;
   for (const c of customers) {
     const bal = (
       db
         .prepare(
-          `SELECT COALESCE(SUM(bill_bakaya), 0) as b FROM sales WHERE customer_id = ?`
+          `SELECT COALESCE(SUM(bill_bakaya), 0) as b FROM sales WHERE (deleted IS NULL OR deleted = 0) AND customer_id = ?`
         )
         .get(c.id) as { b: number }
     ).b;
-    db.prepare("UPDATE customers SET balance = ? WHERE id = ?").run(bal, c.id);
+    db.prepare("UPDATE customers SET balance = ? WHERE id = ? AND (deleted IS NULL OR deleted = 0)").run(bal, c.id);
   }
 
-  const accounts = db.prepare("SELECT id, opening_balance FROM accounts").all() as Array<{
+  const accounts = db.prepare("SELECT id, opening_balance FROM accounts WHERE (deleted IS NULL OR deleted = 0)").all() as Array<{
     id: number;
     opening_balance: number;
   }>;
@@ -330,11 +330,11 @@ export function recalculateStockAndBalances(db: PepsiDb) {
       db
         .prepare(
           `SELECT COALESCE(SUM(CASE WHEN entry_type = 'debit' THEN amount ELSE -amount END), 0) as d
-           FROM general_entries WHERE account_id = ?`
+           FROM general_entries WHERE (deleted IS NULL OR deleted = 0) AND account_id = ?`
         )
         .get(a.id) as { d: number }
     ).d;
-    db.prepare("UPDATE accounts SET balance = ? WHERE id = ?").run(
+    db.prepare("UPDATE accounts SET balance = ? WHERE id = ? AND (deleted IS NULL OR deleted = 0)").run(
       Number(a.opening_balance) + Number(delta),
       a.id
     );

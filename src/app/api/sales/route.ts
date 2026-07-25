@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
        FROM sales s
        JOIN customers c ON c.id = s.customer_id
        LEFT JOIN salesmen sm ON sm.id = s.salesman_id
+       WHERE (s.deleted IS NULL OR s.deleted = 0)
        ORDER BY s.id DESC`
     )
     .all();
@@ -392,8 +393,13 @@ export async function DELETE(req: NextRequest) {
         db.prepare("UPDATE customers SET balance = balance - ? WHERE id = ?").run(due, sale.customer_id);
       }
 
-      db.prepare("DELETE FROM sale_items WHERE sale_id = ?").run(id);
-      db.prepare("DELETE FROM sales WHERE id = ?").run(id);
+      const syncId = (db.prepare("SELECT sync_id FROM sales WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+      if (syncId) {
+        db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+      }
+
+      db.prepare("UPDATE sale_items SET deleted = 1 WHERE sale_id = ?").run(id);
+      db.prepare("UPDATE sales SET deleted = 1 WHERE id = ?").run(id);
     });
     tx();
     return NextResponse.json({ ok: true });

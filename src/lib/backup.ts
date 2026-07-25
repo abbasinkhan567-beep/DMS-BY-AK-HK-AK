@@ -192,6 +192,34 @@ export function restoreBackup(fileName: string): { ok: true; restored: string } 
   return { ok: true, restored: safe };
 }
 
+export function deleteBackup(fileName: string): { ok: true; deleted: string } {
+  ensureDirs();
+  const safe = path.basename(fileName);
+  if (safe === DAY_ONE) throw new Error("Cannot delete Day One backup");
+  const allowed = safe.startsWith("pepsi-backup-") && safe.endsWith(".db");
+  if (!allowed) throw new Error("Invalid backup file name");
+
+  const appPath = path.join(backupsDir, safe);
+  const docsPath = path.join(docsBackupDir, safe);
+
+  let deleted = false;
+  if (fs.existsSync(appPath)) {
+    fs.unlinkSync(appPath);
+    deleted = true;
+  }
+  try {
+    if (fs.existsSync(docsPath)) {
+      fs.unlinkSync(docsPath);
+    }
+  } catch {
+    /* best-effort */
+  }
+
+  if (!deleted) throw new Error("Backup file not found");
+
+  return { ok: true, deleted: safe };
+}
+
 export function readBackupFile(fileName?: string): { buffer: Buffer; fileName: string } {
   if (!fileName || fileName === "current") {
     getDb();

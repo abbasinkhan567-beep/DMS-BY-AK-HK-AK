@@ -5,8 +5,8 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   const type = new URL(req.url).searchParams.get("type");
   const rows = type
-    ? db.prepare("SELECT * FROM accounts WHERE account_type = ? ORDER BY name").all(type)
-    : db.prepare("SELECT * FROM accounts ORDER BY account_type, name").all();
+    ? db.prepare("SELECT * FROM accounts WHERE account_type = ? AND (deleted IS NULL OR deleted = 0) ORDER BY name").all(type)
+    : db.prepare("SELECT * FROM accounts WHERE (deleted IS NULL OR deleted = 0) ORDER BY account_type, name").all();
   return NextResponse.json(rows);
 }
 
@@ -53,12 +53,16 @@ export async function DELETE(req: NextRequest) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
   const db = getDb();
-  const used = db.prepare("SELECT COUNT(*) as c FROM general_entries WHERE account_id = ?").get(id) as {
+  const used = db.prepare("SELECT COUNT(*) as c FROM general_entries WHERE (deleted IS NULL OR deleted = 0) AND account_id = ?").get(id) as {
     c: number;
   };
   if (used.c > 0) {
     return NextResponse.json({ error: "This account has entries. Delete those entries first." }, { status: 400 });
   }
-  db.prepare("DELETE FROM accounts WHERE id = ?").run(id);
+  const syncId = (db.prepare("SELECT sync_id FROM accounts WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+  if (syncId) {
+    db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+  }
+  db.prepare("UPDATE accounts SET deleted = 1 WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

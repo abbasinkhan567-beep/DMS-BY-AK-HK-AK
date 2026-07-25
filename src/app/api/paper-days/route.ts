@@ -11,20 +11,20 @@ export async function GET(req: NextRequest) {
         `SELECT s.id, s.invoice_no, s.sale_date, s.total_amount, s.paid_amount, s.is_historical,
                 c.name as customer_name
          FROM sales s JOIN customers c ON c.id = s.customer_id
-         WHERE s.sale_date = ?
-         ORDER BY s.id DESC`
+          WHERE (s.deleted IS NULL OR s.deleted = 0) AND s.sale_date = ?
+          ORDER BY s.id DESC`
       )
       .all(date);
     const purchases = db
-      .prepare(
-        `SELECT id, invoice_no, purchase_date, supplier, company_name, total_amount, paid_amount, is_historical
-         FROM purchases WHERE purchase_date = ? ORDER BY id DESC`
+    .prepare(
+      `SELECT id, invoice_no, purchase_date, supplier, company_name, total_amount, paid_amount, is_historical
+       FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND purchase_date = ? ORDER BY id DESC`
       )
       .all(date);
     const expenses = db
-      .prepare(
-        `SELECT id, expense_date, category, title, amount, is_historical
-         FROM expenses WHERE expense_date = ? ORDER BY id DESC`
+    .prepare(
+      `SELECT id, expense_date, category, title, amount, is_historical
+       FROM expenses WHERE (deleted IS NULL OR deleted = 0) AND expense_date = ? ORDER BY id DESC`
       )
       .all(date);
     const paper = db.prepare("SELECT * FROM paper_days WHERE entry_date = ?").get(date) as
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
   const tracked = db
     .prepare(
-      `SELECT * FROM paper_days ORDER BY entry_date DESC LIMIT 60`
+      `SELECT * FROM paper_days WHERE (deleted IS NULL OR deleted = 0) ORDER BY entry_date DESC LIMIT 60`
     )
     .all();
 
@@ -71,11 +71,11 @@ export async function GET(req: NextRequest) {
     .prepare(
       `SELECT d as entry_date, SUM(sales_c) as sales_count, SUM(purchase_c) as purchase_count, SUM(expense_c) as expense_count
        FROM (
-         SELECT sale_date as d, COUNT(*) as sales_c, 0 as purchase_c, 0 as expense_c FROM sales GROUP BY sale_date
+         SELECT sale_date as d, COUNT(*) as sales_c, 0 as purchase_c, 0 as expense_c FROM sales WHERE (deleted IS NULL OR deleted = 0) GROUP BY sale_date
          UNION ALL
-         SELECT purchase_date, 0, COUNT(*), 0 FROM purchases GROUP BY purchase_date
+         SELECT purchase_date, 0, COUNT(*), 0 FROM purchases WHERE (deleted IS NULL OR deleted = 0) GROUP BY purchase_date
          UNION ALL
-         SELECT expense_date, 0, 0, COUNT(*) FROM expenses GROUP BY expense_date
+         SELECT expense_date, 0, 0, COUNT(*) FROM expenses WHERE (deleted IS NULL OR deleted = 0) GROUP BY expense_date
        )
        GROUP BY d
        ORDER BY d DESC

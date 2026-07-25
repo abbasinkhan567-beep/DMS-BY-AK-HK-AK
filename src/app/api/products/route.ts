@@ -6,7 +6,7 @@ export async function GET() {
   seedIfEmpty();
   const db = getDb();
   const products = db
-    .prepare("SELECT * FROM products ORDER BY name, size")
+    .prepare("SELECT * FROM products WHERE (deleted IS NULL OR deleted = 0) ORDER BY name, size")
     .all();
   return NextResponse.json(products);
 }
@@ -75,14 +75,18 @@ export async function DELETE(req: NextRequest) {
   }
 
   const db = getDb();
-  const used = db.prepare("SELECT COUNT(*) as c FROM purchase_items WHERE product_id = ?").get(id) as { c: number };
-  const sold = db.prepare("SELECT COUNT(*) as c FROM sale_items WHERE product_id = ?").get(id) as { c: number };
+  const used = db.prepare("SELECT COUNT(*) as c FROM purchase_items WHERE (deleted IS NULL OR deleted = 0) AND product_id = ?").get(id) as { c: number };
+  const sold = db.prepare("SELECT COUNT(*) as c FROM sale_items WHERE (deleted IS NULL OR deleted = 0) AND product_id = ?").get(id) as { c: number };
   if (used.c > 0 || sold.c > 0) {
     return NextResponse.json(
       { error: "Cannot delete. This product is used in purchases or sales. Remove those entries first." },
       { status: 400 }
     );
   }
-  db.prepare("DELETE FROM products WHERE id = ?").run(id);
+  const syncId = (db.prepare("SELECT sync_id FROM products WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+  if (syncId) {
+    db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+  }
+  db.prepare("UPDATE products SET deleted = 1 WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

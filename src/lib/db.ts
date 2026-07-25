@@ -216,6 +216,11 @@ function ensureSchema(db: PepsiDb) {
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS deleted_records (
+      sync_id TEXT PRIMARY KEY,
+      deleted_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
   `);
 
   addColumn(db, "products", "location", "TEXT NOT NULL DEFAULT 'main'");
@@ -257,6 +262,21 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "company_info", "created_at", "TEXT");
   addColumn(db, "company_info", "sync_id", "TEXT");
   addColumn(db, "company_info", "updated_at", "TEXT");
+
+  addColumn(db, "products", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "customers", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "salesmen", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "purchases", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "purchase_items", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "sales", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "sale_items", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "expenses", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "accounts", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "general_entries", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "stock_transfers", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "stock_adjustments", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "floors", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "paper_days", "deleted", "INTEGER NOT NULL DEFAULT 0");
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();
   if (!company) {

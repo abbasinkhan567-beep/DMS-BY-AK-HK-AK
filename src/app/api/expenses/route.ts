@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
-  let sql = "SELECT * FROM expenses WHERE 1=1";
+  let sql = "SELECT * FROM expenses WHERE (deleted IS NULL OR deleted = 0)";
   const params: string[] = [];
   if (from) {
     sql += " AND expense_date >= ?";
@@ -85,6 +85,11 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
-  getDb().prepare("DELETE FROM expenses WHERE id = ?").run(id);
+  const db = getDb();
+  const syncId = (db.prepare("SELECT sync_id FROM expenses WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+  if (syncId) {
+    db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+  }
+  db.prepare("UPDATE expenses SET deleted = 1 WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

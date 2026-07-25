@@ -29,7 +29,7 @@ function cols(db: PepsiDb, table: string) {
 
 function captureOpenings(db: PepsiDb) {
   const map = new Map<string, number>();
-  const rows = db.prepare("SELECT id, sync_id, stock FROM products").all() as Array<{
+  const rows = db.prepare("SELECT id, sync_id, stock FROM products WHERE (deleted IS NULL OR deleted = 0)").all() as Array<{
     id: number;
     sync_id: string;
     stock: number;
@@ -219,7 +219,7 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
       updated += u;
     });
 
-    const products = local.prepare("SELECT id, sync_id, stock FROM products").all() as Array<{
+    const products = local.prepare("SELECT id, sync_id, stock FROM products WHERE (deleted IS NULL OR deleted = 0)").all() as Array<{
       id: number;
       sync_id: string;
       stock: number;
@@ -278,7 +278,7 @@ function mergeMasters(
   let updated = 0;
   const remoteCols = new Set(cols(remote, table));
   const localCols = new Set(cols(local, table));
-  const rows = remote.prepare(`SELECT * FROM ${table}`).all() as Array<Record<string, unknown>>;
+  const rows = remote.prepare(`SELECT * FROM ${table} WHERE (deleted IS NULL OR deleted = 0)`).all() as Array<Record<string, unknown>>;
 
   for (const row of rows) {
     const syncId = String(row.sync_id || "");
@@ -290,6 +290,8 @@ function mergeMasters(
     const useFields = fields.filter((f) => remoteCols.has(f) && localCols.has(f));
 
     if (!existing) {
+      const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+      if (isDeleted) continue;
       const insertFields = ["sync_id", "updated_at", ...useFields].filter(
         (f, i, arr) => arr.indexOf(f) === i && localCols.has(f)
       );
@@ -314,6 +316,9 @@ function mergeMasters(
         )
         .run(...values);
       added++;
+    } else if (Number(existing.deleted) === 1) {
+      // Local was soft-deleted, skip update from remote
+      continue;
     } else if (newer(String(row.updated_at || ""), String(existing.updated_at || ""))) {
       const sets = useFields.map((f) => `${f}=?`).join(", ");
       local
@@ -334,16 +339,18 @@ function mergePurchases(
 ) {
   let added = 0;
   let updated = 0;
-  const purchases = remote.prepare("SELECT * FROM purchases").all() as Array<Record<string, unknown>>;
+  const purchases = remote.prepare("SELECT * FROM purchases WHERE (deleted IS NULL OR deleted = 0)").all() as Array<Record<string, unknown>>;
 
   for (const row of purchases) {
     const syncId = String(row.sync_id || "");
     if (!syncId) continue;
     const existing = local
-      .prepare("SELECT id, updated_at FROM purchases WHERE sync_id = ?")
-      .get(syncId) as { id: number; updated_at: string } | undefined;
+      .prepare("SELECT id, updated_at, deleted FROM purchases WHERE sync_id = ?")
+      .get(syncId) as { id: number; updated_at: string; deleted: number } | undefined;
 
     if (!existing) {
+      const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+      if (isDeleted) continue;
       const result = local
         .prepare(
           `INSERT INTO purchases (
@@ -404,6 +411,8 @@ function mergePurchases(
           );
       }
       added++;
+    } else if (Number(existing.deleted) === 1) {
+      continue;
     } else if (newer(String(row.updated_at || ""), existing.updated_at)) {
       local
         .prepare(
@@ -446,13 +455,13 @@ function mergeSales(
 ) {
   let added = 0;
   let updated = 0;
-  const sales = remote.prepare("SELECT * FROM sales").all() as Array<Record<string, unknown>>;
+  const sales = remote.prepare("SELECT * FROM sales WHERE (deleted IS NULL OR deleted = 0)").all() as Array<Record<string, unknown>>;
 
   for (const row of sales) {
     const syncId = String(row.sync_id || "");
     if (!syncId) continue;
-    const existing = local.prepare("SELECT id, updated_at FROM sales WHERE sync_id = ?").get(syncId) as
-      | { id: number; updated_at: string }
+    const existing = local.prepare("SELECT id, updated_at, deleted FROM sales WHERE sync_id = ?").get(syncId) as
+      | { id: number; updated_at: string; deleted: number }
       | undefined;
 
     const customerId = remapFk(local, remote, "customers", row.customer_id as number);
@@ -460,6 +469,8 @@ function mergeSales(
     const salesmanId = remapFk(local, remote, "salesmen", row.salesman_id as number | null);
 
     if (!existing) {
+      const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+      if (isDeleted) continue;
       const result = local
         .prepare(
           `INSERT INTO sales (
@@ -525,6 +536,8 @@ function mergeSales(
           );
       }
       added++;
+    } else if (Number(existing.deleted) === 1) {
+      continue;
     } else if (newer(String(row.updated_at || ""), existing.updated_at)) {
       local
         .prepare(
@@ -579,19 +592,21 @@ function mergeSimpleTx(
 ) {
   let added = 0;
   let updated = 0;
-  const rows = remote.prepare(`SELECT * FROM ${table}`).all() as Array<Record<string, unknown>>;
+  const rows = remote.prepare(`SELECT * FROM ${table} WHERE (deleted IS NULL OR deleted = 0)`).all() as Array<Record<string, unknown>>;
   const localColSet = new Set(cols(local, table));
 
   for (const row of rows) {
     const syncId = String(row.sync_id || "");
     if (!syncId) continue;
-    const existing = local.prepare(`SELECT id, updated_at FROM ${table} WHERE sync_id = ?`).get(syncId) as
-      | { id: number; updated_at: string }
+    const existing = local.prepare(`SELECT id, updated_at, deleted FROM ${table} WHERE sync_id = ?`).get(syncId) as
+      | { id: number; updated_at: string; deleted: number }
       | undefined;
     const extras = extra(row);
     if (accept && !accept(extras)) continue;
 
     if (!existing) {
+      const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+      if (isDeleted) continue;
       const insertFields = ["sync_id", "updated_at", ...fields, ...Object.keys(extras)].filter((f) =>
         localColSet.has(f)
       );
@@ -610,6 +625,8 @@ function mergeSimpleTx(
         )
         .run(...values);
       added++;
+    } else if (Number(existing.deleted) === 1) {
+      continue;
     } else if (newer(String(row.updated_at || ""), existing.updated_at)) {
       const setFields = [...fields, ...Object.keys(extras)].filter((f) => localColSet.has(f));
       const unique = [...new Set(setFields)];
@@ -636,14 +653,16 @@ function mergePaperDays(
 ) {
   let added = 0;
   let updated = 0;
-  const rows = remote.prepare("SELECT * FROM paper_days").all() as Array<Record<string, unknown>>;
+  const rows = remote.prepare("SELECT * FROM paper_days WHERE (deleted IS NULL OR deleted = 0)").all() as Array<Record<string, unknown>>;
   for (const row of rows) {
     const syncId = String(row.sync_id || "");
     if (!syncId) continue;
     const existing = local
-      .prepare("SELECT id, updated_at, status FROM paper_days WHERE sync_id = ?")
-      .get(syncId) as { id: number; updated_at: string; status: string } | undefined;
+      .prepare("SELECT id, updated_at, status, deleted FROM paper_days WHERE sync_id = ?")
+      .get(syncId) as { id: number; updated_at: string; status: string; deleted: number } | undefined;
     if (!existing) {
+      const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+      if (isDeleted) continue;
       try {
         local
           .prepare(
@@ -667,6 +686,8 @@ function mergePaperDays(
           .run(row.notes ?? null, row.status, syncId, row.updated_at, row.entry_date);
         updated++;
       }
+    } else if (Number(existing.deleted) === 1) {
+      continue;
     } else if (newer(String(row.updated_at || ""), existing.updated_at)) {
       const status =
         existing.status === "done" || row.status === "done" ? "done" : row.status || existing.status;

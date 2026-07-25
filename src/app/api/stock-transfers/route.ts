@@ -8,6 +8,7 @@ export async function GET() {
       `SELECT st.*, p.name as product_name, p.size as product_size
        FROM stock_transfers st
        JOIN products p ON p.id = st.product_id
+       WHERE (st.deleted IS NULL OR st.deleted = 0)
        ORDER BY st.id DESC`
     )
     .all();
@@ -94,6 +95,10 @@ export async function DELETE(req: NextRequest) {
     | undefined;
   if (!transfer) return NextResponse.json({ error: "Not found" }, { status: 404 });
   db.prepare("UPDATE products SET location = ? WHERE id = ?").run(transfer.from_location, transfer.product_id);
-  db.prepare("DELETE FROM stock_transfers WHERE id = ?").run(id);
+  const syncId = (db.prepare("SELECT sync_id FROM stock_transfers WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+  if (syncId) {
+    db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+  }
+  db.prepare("UPDATE stock_transfers SET deleted = 1 WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

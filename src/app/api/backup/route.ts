@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   backupStatus,
   createBackup,
+  deleteBackup,
   ensureDailyAutoBackup,
   listBackups,
   readBackupFile,
@@ -81,6 +82,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ...result,
         message: `Restored from ${result.restored}. Refresh the page.`,
+        status: backupStatus(),
+        backups: listBackups().slice(0, 40),
+      });
+    }
+
+    if (action === "delete") {
+      const fileName = String(body.fileName || "").trim();
+      if (!fileName) {
+        return NextResponse.json({ error: "Backup file name required" }, { status: 400 });
+      }
+      const result = deleteBackup(fileName);
+      return NextResponse.json({
+        ...result,
+        message: `Deleted backup: ${result.deleted}`,
         status: backupStatus(),
         backups: listBackups().slice(0, 40),
       });

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     SELECT ge.*, a.name as account_name, a.account_type
     FROM general_entries ge
     JOIN accounts a ON a.id = ge.account_id
-    WHERE 1=1`;
+    WHERE (ge.deleted IS NULL OR ge.deleted = 0)`;
   const params: Array<string | number> = [];
   if (from) {
     sql += " AND ge.entry_date >= ?";
@@ -81,7 +81,7 @@ export async function PUT(req: NextRequest) {
   try {
     const tx = db.transaction(() => {
       const old = db.prepare("SELECT * FROM general_entries WHERE id = ?").get(id) as
-        | { account_id: number; entry_type: string; amount: number }
+        | { account_id: number; entry_type: string; amount: number; sync_id?: string }
         | undefined;
       if (!old) throw new Error("Not found");
 
@@ -117,12 +117,16 @@ export async function DELETE(req: NextRequest) {
   try {
     const tx = db.transaction(() => {
       const old = db.prepare("SELECT * FROM general_entries WHERE id = ?").get(id) as
-        | { account_id: number; entry_type: string; amount: number }
+        | { account_id: number; entry_type: string; amount: number; sync_id?: string }
         | undefined;
       if (!old) throw new Error("Not found");
       const delta = old.entry_type === "debit" ? -old.amount : old.amount;
       db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, old.account_id);
-      db.prepare("DELETE FROM general_entries WHERE id = ?").run(id);
+      const syncId = old.sync_id as string | undefined;
+      if (syncId) {
+        db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+      }
+      db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(id);
     });
     tx();
     return NextResponse.json({ ok: true });

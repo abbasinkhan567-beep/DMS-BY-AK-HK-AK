@@ -12,6 +12,8 @@ import {
   RotateCcw,
   Save,
   RefreshCcw,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button, Card, Input, PageHeader, TextArea } from "@/components/ui";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -298,6 +300,53 @@ export default function SettingsPage() {
       ? `/api/backup?download=1&file=${encodeURIComponent(file)}`
       : "/api/backup?download=1";
     window.location.href = q;
+  }
+
+  async function deleteBackupFile(fileName: string) {
+    if (!confirm(`Permanently delete this backup?\n\n${fileName}\n\nThis cannot be undone.`)) return;
+    setBackupBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      const res = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", fileName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Delete failed");
+      setMsg(data.message || "Backup deleted");
+      setBackupInfo({ ...data.status, backups: data.backups });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function resetAllData() {
+    if (
+      !confirm(
+        "⚠️ RESET ALL DATA ⚠️\n\nThis will delete ALL sales, purchases, products, customers, and all other data.\n\nA safety backup will be created first.\n\nThe system will be restored to factory defaults with only default accounts and floors.\n\nAre you sure?"
+      )
+    ) {
+      return;
+    }
+    if (!confirm("FINAL CONFIRMATION:\nType 'RESET' in the next prompt to confirm.")) return;
+    setBackupBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      const res = await fetch("/api/reset", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Reset failed");
+      setMsg(data.message || "System reset successfully. Reloading...");
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Reset failed");
+    } finally {
+      setBackupBusy(false);
+    }
   }
 
   function formatBytes(n?: number) {
@@ -794,6 +843,16 @@ export default function SettingsPage() {
                               >
                                 <RotateCcw size={14} /> Restore
                               </Button>
+                              {b.name !== "pepsi-day-one.db" && (
+                                <Button
+                                  variant="danger"
+                                  className="!px-2.5 !py-1.5 text-xs"
+                                  onClick={() => deleteBackupFile(b.name)}
+                                  disabled={backupBusy}
+                                >
+                                  <Trash2 size={14} /> Delete
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -802,6 +861,25 @@ export default function SettingsPage() {
                   </table>
                 </div>
               )}
+            </div>
+          </Card>
+
+          <Card title="Reset All Data">
+            <div className="p-5">
+              <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">
+                <p className="flex items-start gap-2">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                  <strong>Danger Zone:</strong> This will permanently delete all your data — sales,
+                  purchases, products, customers, expenses, and everything else. A safety backup
+                  will be created automatically before resetting. Use this when you want to start
+                  fresh from zero.
+                </p>
+              </div>
+              <div className="mt-4">
+                <Button variant="danger" onClick={resetAllData} disabled={backupBusy}>
+                  <Trash2 size={16} /> Reset All Data
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

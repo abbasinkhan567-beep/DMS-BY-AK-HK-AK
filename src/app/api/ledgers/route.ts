@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     let sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
                total_amount as debit, paid_amount as credit, 'Purchase' as source,
                CAST(COALESCE(total_expense, 0) as TEXT) as notes
-               FROM purchases WHERE 1=1`;
+               FROM purchases WHERE (deleted IS NULL OR deleted = 0)`;
     sql += dateFilter("purchase_date", from, to, params);
     sql += " ORDER BY purchase_date DESC, id DESC";
     return NextResponse.json({ type, rows: db.prepare(sql).all(...params) });
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     let sql = `
       SELECT id, expense_date as date, category as ref, title as party,
              amount as debit, 0 as credit, paid_from as source, notes
-      FROM expenses WHERE 1=1
+      FROM expenses WHERE (deleted IS NULL OR deleted = 0)
       ${dateFilter("expense_date", from, to, params)}
       UNION ALL
       SELECT s.id, s.sale_date as date, 'Sale Bill Expense' as ref,
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
              COALESCE(s.invoice_no, '#' || s.id) as notes
       FROM sales s
       JOIN customers c ON c.id = s.customer_id
-      WHERE s.total_bill_expense > 0
+      WHERE (s.deleted IS NULL OR s.deleted = 0) AND s.total_bill_expense > 0
       ${dateFilter("s.sale_date", from, to, params)}
       UNION ALL
       SELECT s.id, s.sale_date as date, 'Discount' as ref,
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
              COALESCE(s.invoice_no, '#' || s.id) as notes
       FROM sales s
       JOIN customers c ON c.id = s.customer_id
-      WHERE s.total_discount > 0
+      WHERE (s.deleted IS NULL OR s.deleted = 0) AND s.total_discount > 0
       ${dateFilter("s.sale_date", from, to, params)}
       UNION ALL
       SELECT p.id, p.purchase_date as date, 'Purchase Expense' as ref,
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
              p.total_expense as debit, 0 as credit, 'Purchase' as source,
              COALESCE(p.invoice_no, '#' || p.id) as notes
       FROM purchases p
-      WHERE COALESCE(p.total_expense, 0) > 0
+      WHERE (p.deleted IS NULL OR p.deleted = 0) AND COALESCE(p.total_expense, 0) > 0
       ${dateFilter("p.purchase_date", from, to, params)}
       ORDER BY date DESC
     `;
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
                FROM sales s
                LEFT JOIN salesmen sm ON sm.id = s.salesman_id
                JOIN customers c ON c.id = s.customer_id
-               WHERE COALESCE(s.total_commission, 0) > 0 OR s.salesman_id IS NOT NULL`;
+               WHERE (s.deleted IS NULL OR s.deleted = 0) AND (COALESCE(s.total_commission, 0) > 0 OR s.salesman_id IS NOT NULL)`;
     sql += dateFilter("s.sale_date", from, to, params);
     sql += " ORDER BY s.sale_date DESC, s.id DESC";
     return NextResponse.json({
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
            'Purchase IN' as source,
            'Stock into warehouse/floor' as notes
     FROM purchases p
-    WHERE 1=1
+    WHERE (p.deleted IS NULL OR p.deleted = 0)
     ${dateFilter("p.purchase_date", from, to, params)}
 
     UNION ALL
@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
     FROM sales s
     JOIN customers c ON c.id = s.customer_id
     LEFT JOIN salesmen sm ON sm.id = s.salesman_id
-    WHERE 1=1
+    WHERE (s.deleted IS NULL OR s.deleted = 0)
     ${dateFilter("s.sale_date", from, to, params)}
 
     UNION ALL
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
            'Transfer' as source, st.notes
     FROM stock_transfers st
     JOIN products pr ON pr.id = st.product_id
-    WHERE 1=1
+    WHERE (st.deleted IS NULL OR st.deleted = 0)
     ${dateFilter("st.transfer_date", from, to, params)}
 
     UNION ALL
@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
            'Adjustment' as source, sa.notes
     FROM stock_adjustments sa
     JOIN products pr ON pr.id = sa.product_id
-    WHERE 1=1
+    WHERE (sa.deleted IS NULL OR sa.deleted = 0)
     ${dateFilter("sa.adjust_date", from, to, params)}
 
     ORDER BY date DESC

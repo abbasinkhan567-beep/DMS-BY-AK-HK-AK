@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 export async function GET() {
   const db = getDb();
   const customers = db
-    .prepare("SELECT * FROM customers ORDER BY name")
+    .prepare("SELECT * FROM customers WHERE (deleted IS NULL OR deleted = 0) ORDER BY name")
     .all();
   return NextResponse.json(customers);
 }
@@ -55,13 +55,17 @@ export async function DELETE(req: NextRequest) {
   }
 
   const db = getDb();
-  const hasSales = db.prepare("SELECT COUNT(*) as c FROM sales WHERE customer_id = ?").get(id) as { c: number };
+  const hasSales = db.prepare("SELECT COUNT(*) as c FROM sales WHERE (deleted IS NULL OR deleted = 0) AND customer_id = ?").get(id) as { c: number };
   if (hasSales.c > 0) {
     return NextResponse.json(
       { error: "Cannot delete. This customer has sales records. Remove those entries first." },
       { status: 400 }
     );
   }
-  db.prepare("DELETE FROM customers WHERE id = ?").run(id);
+  const syncId = (db.prepare("SELECT sync_id FROM customers WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
+  if (syncId) {
+    db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
+  }
+  db.prepare("UPDATE customers SET deleted = 1 WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }
