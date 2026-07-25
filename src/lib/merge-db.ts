@@ -9,6 +9,21 @@ import {
 import { getDb } from "@/lib/db";
 import { openDatabase, type PepsiDb } from "@/lib/sqlite";
 
+function ensureDeletedColumn(db: PepsiDb, table: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "deleted")) {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0`);
+    } catch { /* column may already exist */ }
+  }
+}
+
+const MERGE_TABLES = [
+  "products", "customers", "salesmen", "purchases", "purchase_items",
+  "sales", "sale_items", "expenses", "accounts", "general_entries",
+  "stock_transfers", "stock_adjustments", "floors", "paper_days",
+];
+
 export type MergeStats = {
   added: number;
   updated: number;
@@ -79,6 +94,10 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
   const remote = openDatabase(tmp);
   remote.pragma("foreign_keys = OFF");
   ensureSyncSchema(remote);
+  for (const t of MERGE_TABLES) {
+    ensureDeletedColumn(remote, t);
+    ensureDeletedColumn(local, t);
+  }
 
   const openings = captureOpenings(local);
   const remoteOpenings = captureOpenings(remote);
