@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { buildSaleAutoEntries } from "@/lib/accounting";
+import { buildSaleLedgerAutoEntries } from "@/lib/ledger-postings";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -228,6 +229,32 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const saleIdNumber = Number(saleId);
+      const ledgerEntries = buildSaleLedgerAutoEntries({
+        saleId: saleIdNumber,
+        invoiceNo: invoice_no || `#${saleIdNumber}`,
+        entryDate: sale_date || new Date().toISOString().slice(0, 10),
+        party: customer?.name || "Customer",
+        totalAmount: total_amount,
+        paidAmount: paid,
+      });
+      for (const ledgerEntry of ledgerEntries) {
+        db.prepare(
+          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          ledgerEntry.ledger_type,
+          ledgerEntry.entry_date,
+          ledgerEntry.ref,
+          ledgerEntry.party,
+          ledgerEntry.debit,
+          ledgerEntry.credit,
+          ledgerEntry.source,
+          ledgerEntry.notes,
+          ledgerEntry.sub_type || null
+        );
+      }
+
       return saleId;
     });
 
@@ -404,6 +431,7 @@ export async function PUT(req: NextRequest) {
       for (const row of existing) {
         db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
       }
+      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(invoice_no || `#${id}`, "Sale");
 
       for (const entry of entries) {
         const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
@@ -419,6 +447,31 @@ export async function PUT(req: NextRequest) {
             "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
           ).run(sale_date, accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
         }
+      }
+
+      const ledgerEntries = buildSaleLedgerAutoEntries({
+        saleId: Number(id),
+        invoiceNo: invoice_no || `#${id}`,
+        entryDate: sale_date,
+        party: customer?.name || "Customer",
+        totalAmount: items.reduce((sum: number, item: any) => sum + Number(item.unit_price || 0) * Number(item.quantity || 0), 0),
+        paidAmount: paid_amount || 0,
+      });
+      for (const ledgerEntry of ledgerEntries) {
+        db.prepare(
+          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          ledgerEntry.ledger_type,
+          ledgerEntry.entry_date,
+          ledgerEntry.ref,
+          ledgerEntry.party,
+          ledgerEntry.debit,
+          ledgerEntry.credit,
+          ledgerEntry.source,
+          ledgerEntry.notes,
+          ledgerEntry.sub_type || null
+        );
       }
     });
     tx();

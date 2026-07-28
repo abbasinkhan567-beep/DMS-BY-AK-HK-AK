@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { buildPurchaseAutoEntries } from "@/lib/accounting";
+import { buildPurchaseLedgerAutoEntries } from "@/lib/ledger-postings";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -183,6 +184,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const purchaseIdNumber = Number(purchaseId);
+    const ledgerEntries = buildPurchaseLedgerAutoEntries({
+      purchaseId: purchaseIdNumber,
+      invoiceNo: invoice_no || `#${purchaseIdNumber}`,
+      entryDate: purchase_date || new Date().toISOString().slice(0, 10),
+      party: company_name || supplier || "Supplier",
+      totalAmount: total_amount,
+      paidAmount: paid_amount,
+      expenseAmount: total_expense,
+    });
+    for (const ledgerEntry of ledgerEntries) {
+      db.prepare(
+        `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        ledgerEntry.ledger_type,
+        ledgerEntry.entry_date,
+        ledgerEntry.ref,
+        ledgerEntry.party,
+        ledgerEntry.debit,
+        ledgerEntry.credit,
+        ledgerEntry.source,
+        ledgerEntry.notes,
+        ledgerEntry.sub_type || null
+      );
+    }
+
     return purchaseId;
   });
 
@@ -291,6 +319,7 @@ export async function PUT(req: NextRequest) {
       for (const row of existing) {
         db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
       }
+      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source IN (?, ?)").run(invoice_no || `#${id}`, "Purchase", "Purchase Expense");
 
       const entries = buildPurchaseAutoEntries({
         supplierName: company_name || supplier || "Supplier",
@@ -316,6 +345,32 @@ export async function PUT(req: NextRequest) {
             "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
           ).run(purchase_date, accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
         }
+      }
+
+      const ledgerEntries = buildPurchaseLedgerAutoEntries({
+        purchaseId: Number(id),
+        invoiceNo: invoice_no || `#${id}`,
+        entryDate: purchase_date,
+        party: company_name || supplier || "Supplier",
+        totalAmount: items.reduce((sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate, 0),
+        paidAmount: paid_amount || 0,
+        expenseAmount: total_expense,
+      });
+      for (const ledgerEntry of ledgerEntries) {
+        db.prepare(
+          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          ledgerEntry.ledger_type,
+          ledgerEntry.entry_date,
+          ledgerEntry.ref,
+          ledgerEntry.party,
+          ledgerEntry.debit,
+          ledgerEntry.credit,
+          ledgerEntry.source,
+          ledgerEntry.notes,
+          ledgerEntry.sub_type || null
+        );
       }
     });
     tx();

@@ -1,6 +1,6 @@
 {
-  "version": "6.0.0",
+  "version": "7.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v6.0: Added ledger subcategories for Company (Conditional, Hand to Hand, Paid) and Salesman (Salesman → Customer, Customer → Salesman), with automated ledger views for the missing flows.",
+  "notes": "v7.0: Sales, purchases, and expenses now auto-post into the ledgers when bills are entered, and edits replace prior ledger entries so the books stay synchronized.",
   "updatedAt": "2026-07-28"
 }

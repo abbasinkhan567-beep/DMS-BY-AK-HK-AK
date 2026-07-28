@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { buildExpenseAutoEntries } from "@/lib/accounting";
+import { buildExpenseLedgerAutoEntries } from "@/lib/ledger-postings";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -80,6 +81,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const expenseId = Number(result.lastInsertRowid);
+  const ledgerEntries = buildExpenseLedgerAutoEntries({
+    expenseId,
+    invoiceNo: `EXP-${expenseId}`,
+    entryDate: expense_date || new Date().toISOString().slice(0, 10),
+    party: title,
+    amount,
+    paidFrom: paid_from,
+  });
+  for (const ledgerEntry of ledgerEntries) {
+    db.prepare(
+      `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      ledgerEntry.ledger_type,
+      ledgerEntry.entry_date,
+      ledgerEntry.ref,
+      ledgerEntry.party,
+      ledgerEntry.debit,
+      ledgerEntry.credit,
+      ledgerEntry.source,
+      ledgerEntry.notes,
+      ledgerEntry.sub_type || null
+    );
+  }
+
   return NextResponse.json(row, { status: 201 });
 }
 
@@ -107,6 +134,7 @@ export async function PUT(req: NextRequest) {
   for (const row of existing) {
     db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
   }
+  db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(`EXP-${id}`, "Cash");
   const entries = buildExpenseAutoEntries({ title, amount, paidFrom: paid_from, invoiceNo: `EXP-${id}` });
   for (const entry of entries) {
     const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
@@ -122,6 +150,31 @@ export async function PUT(req: NextRequest) {
         "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
       ).run(expense_date, accountId, entry.entryType, entry.amount, entry.narration, `EXP-${id}`);
     }
+  }
+
+  const ledgerEntries = buildExpenseLedgerAutoEntries({
+    expenseId: Number(id),
+    invoiceNo: `EXP-${id}`,
+    entryDate: expense_date,
+    party: title,
+    amount,
+    paidFrom: paid_from,
+  });
+  for (const ledgerEntry of ledgerEntries) {
+    db.prepare(
+      `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      ledgerEntry.ledger_type,
+      ledgerEntry.entry_date,
+      ledgerEntry.ref,
+      ledgerEntry.party,
+      ledgerEntry.debit,
+      ledgerEntry.credit,
+      ledgerEntry.source,
+      ledgerEntry.notes,
+      ledgerEntry.sub_type || null
+    );
   }
   return NextResponse.json(db.prepare("SELECT * FROM expenses WHERE id = ?").get(id));
 }
