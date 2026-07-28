@@ -1,6 +1,6 @@
 {
-  "version": "7.0.0",
+  "version": "8.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v7.0: Sales, purchases, and expenses now auto-post into the ledgers when bills are entered, and edits replace prior ledger entries so the books stay synchronized.",
+  "notes": "v8.0: Fixed the manual ledger database schema so the new sub_type column is added automatically for existing installations and the bill-ledger auto-posting flow works without errors.",
   "updatedAt": "2026-07-28"
 }

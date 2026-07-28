@@ -24,6 +24,31 @@ function addColumn(db: PepsiDb, table: string, column: string, def: string) {
   }
 }
 
+function ensureManualLedgerSchema(db: PepsiDb) {
+  const exists = columnExists(db, "manual_ledger_entries", "id");
+  if (!exists) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS manual_ledger_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ledger_type TEXT NOT NULL CHECK (ledger_type IN ('company', 'expense', 'customer', 'salesman', 'floor')),
+        entry_date TEXT NOT NULL DEFAULT (date('now','localtime')),
+        ref TEXT,
+        party TEXT,
+        debit REAL NOT NULL DEFAULT 0,
+        credit REAL NOT NULL DEFAULT 0,
+        source TEXT,
+        notes TEXT,
+        sub_type TEXT,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      )
+    `);
+  }
+
+  addColumn(db, "manual_ledger_entries", "sub_type", "TEXT");
+  addColumn(db, "manual_ledger_entries", "deleted", "INTEGER NOT NULL DEFAULT 0");
+}
+
 function ensureSchema(db: PepsiDb) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
@@ -232,6 +257,7 @@ function ensureSchema(db: PepsiDb) {
       credit REAL NOT NULL DEFAULT 0,
       source TEXT,
       notes TEXT,
+      sub_type TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
   `);
@@ -290,7 +316,7 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "stock_adjustments", "deleted", "INTEGER NOT NULL DEFAULT 0");
   addColumn(db, "floors", "deleted", "INTEGER NOT NULL DEFAULT 0");
   addColumn(db, "paper_days", "deleted", "INTEGER NOT NULL DEFAULT 0");
-  addColumn(db, "manual_ledger_entries", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  ensureManualLedgerSchema(db);
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();
   if (!company) {
