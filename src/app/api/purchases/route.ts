@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { buildPurchaseAutoEntries } from "@/lib/accounting";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -156,6 +157,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const entries = buildPurchaseAutoEntries({
+      supplierName: company_name || supplier,
+      totalAmount: total_amount,
+      paidAmount: paid_amount,
+      expenseAmount: total_expense,
+      paymentType: "cash",
+      bankAccountName: "Main Bank",
+      invoiceNo: invoice_no || `#${purchaseId}`,
+    });
+
+    for (const entry of entries) {
+      const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+      if (!account) {
+        const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+        insertAccount.run(entry.accountName);
+      }
+      const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+      if (accountId) {
+        const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+        db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+        db.prepare(
+          "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+        ).run(purchase_date || new Date().toISOString().slice(0, 10), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${purchaseId}`);
+      }
+    }
+
     return purchaseId;
   });
 
@@ -258,6 +285,37 @@ export async function PUT(req: NextRequest) {
           totalRate
         );
         updateStock.run(qty, rate, rate, item.product_id);
+      }
+
+      const existing = db.prepare("SELECT id FROM general_entries WHERE ref_no = ? AND narration LIKE ?").all(invoice_no || `#${id}`, `%${invoice_no || `#${id}`}%`) as Array<{ id: number }>;
+      for (const row of existing) {
+        db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
+      }
+
+      const entries = buildPurchaseAutoEntries({
+        supplierName: company_name || supplier || "Supplier",
+        totalAmount: items.reduce((sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate, 0),
+        paidAmount: paid_amount || 0,
+        expenseAmount: total_expense,
+        paymentType: "cash",
+        bankAccountName: "Main Bank",
+        invoiceNo: invoice_no || `#${id}`,
+      });
+
+      for (const entry of entries) {
+        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+        if (!account) {
+          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+          insertAccount.run(entry.accountName);
+        }
+        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+        if (accountId) {
+          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+          db.prepare(
+            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+          ).run(purchase_date, accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+        }
       }
     });
     tx();

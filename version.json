@@ -1,6 +1,6 @@
 {
-  "version": "4.0.0",
+  "version": "5.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v4.0: Improved GitHub update and sync flow, stronger remote URL validation, and added regression tests for reliable office-PC updates.",
+  "notes": "v5.0: Sales, purchases, and expenses now auto-post to daybook/general entries, and edits re-post correctly so the books stay synchronized and editable.",
   "updatedAt": "2026-07-28"
 }

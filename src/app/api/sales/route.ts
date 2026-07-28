@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { buildSaleAutoEntries } from "@/lib/accounting";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -200,6 +201,33 @@ export async function POST(req: NextRequest) {
         db.prepare("UPDATE customers SET balance = balance + ? WHERE id = ?").run(bakaya, customer_id);
       }
 
+      const customer = db.prepare("SELECT name FROM customers WHERE id = ?").get(customer_id) as { name: string } | undefined;
+      const accountName = customer?.name || "Customer";
+      const entries = buildSaleAutoEntries({
+        customerName: accountName,
+        totalAmount: total_amount,
+        paidAmount: paid,
+        paymentType: payment_type,
+        bankAccountName: bank_account || "Main Bank",
+        invoiceNo: invoice_no || `#${saleId}`,
+      });
+
+      for (const entry of entries) {
+        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+        if (!account) {
+          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+          insertAccount.run(entry.accountName);
+        }
+        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+        if (accountId) {
+          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+          db.prepare(
+            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+          ).run(sale_date || new Date().toISOString().slice(0, 10), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${saleId}`);
+        }
+      }
+
       return saleId;
     });
 
@@ -360,6 +388,37 @@ export async function PUT(req: NextRequest) {
 
       if (bakaya !== 0) {
         db.prepare("UPDATE customers SET balance = balance + ? WHERE id = ?").run(bakaya, customer_id);
+      }
+
+      const customer = db.prepare("SELECT name FROM customers WHERE id = ?").get(customer_id) as { name: string } | undefined;
+      const entries = buildSaleAutoEntries({
+        customerName: customer?.name || "Customer",
+        totalAmount: total_amount,
+        paidAmount: paid,
+        paymentType: payment_type,
+        bankAccountName: bank_account || "Main Bank",
+        invoiceNo: invoice_no || `#${id}`,
+      });
+
+      const existing = db.prepare("SELECT id FROM general_entries WHERE ref_no = ? AND narration LIKE ?").all(invoice_no || `#${id}`, `%${invoice_no || `#${id}`}%`) as Array<{ id: number }>;
+      for (const row of existing) {
+        db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
+      }
+
+      for (const entry of entries) {
+        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+        if (!account) {
+          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+          insertAccount.run(entry.accountName);
+        }
+        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+        if (accountId) {
+          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+          db.prepare(
+            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+          ).run(sale_date, accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+        }
       }
     });
     tx();
