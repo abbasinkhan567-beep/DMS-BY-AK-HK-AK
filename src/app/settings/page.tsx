@@ -18,6 +18,7 @@ import {
 import { Button, Card, Input, PageHeader, TextArea } from "@/components/ui";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { formatDate } from "@/lib/utils";
+import { normalizeGitHubRepoUrl } from "@/lib/github-url";
 
 type Company = {
   name: string;
@@ -406,7 +407,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/updates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_remote", url: remoteUrl }),
+        body: JSON.stringify({ action: "set_remote", url: normalizeGitHubRepoUrl(remoteUrl) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");

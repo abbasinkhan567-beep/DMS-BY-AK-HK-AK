@@ -1,6 +1,6 @@
 {
-  "version": "3.0.0",
+  "version": "4.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v3.0: Manual ledger entries - add/edit/delete custom entries in all ledger tabs (Company, Expense, Customer, Salesman, Floor). Added manual_ledger_entries table, POST/DELETE API, and UI modal for entry management.",
+  "notes": "v4.0: Improved GitHub update and sync flow, stronger remote URL validation, and added regression tests for reliable office-PC updates.",
   "updatedAt": "2026-07-28"
 }

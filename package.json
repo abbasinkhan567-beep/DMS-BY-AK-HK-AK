@@ -1,6 +1,6 @@
 {
   "name": "pepsi-distribution",
-  "version": "2.0.0",
+  "version": "4.0.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",

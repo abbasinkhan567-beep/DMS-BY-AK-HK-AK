@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
+import { isValidGitHubRepoUrl, normalizeGitHubRepoUrl } from "@/lib/github-url";
 
 function readVersion() {
   try {
@@ -125,8 +126,9 @@ export async function POST(req: NextRequest) {
   const action = body.action || "apply";
 
   if (action === "set_remote") {
-    const url = String(body.url || "").trim();
-    if (!url.includes("github.com") && !url.includes(".git")) {
+    const rawUrl = String(body.url || "").trim();
+    const url = normalizeGitHubRepoUrl(rawUrl);
+    if (!isValidGitHubRepoUrl(url)) {
       return NextResponse.json({ error: "Please enter a valid GitHub repo URL" }, { status: 400 });
     }
     try {
