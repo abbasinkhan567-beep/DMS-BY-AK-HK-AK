@@ -1,6 +1,6 @@
 {
-  "version": "5.0.0",
+  "version": "6.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v5.0: Sales, purchases, and expenses now auto-post to daybook/general entries, and edits re-post correctly so the books stay synchronized and editable.",
+  "notes": "v6.0: Added ledger subcategories for Company (Conditional, Hand to Hand, Paid) and Salesman (Salesman → Customer, Customer → Salesman), with automated ledger views for the missing flows.",
   "updatedAt": "2026-07-28"
 }

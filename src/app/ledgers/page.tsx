@@ -5,6 +5,7 @@ import { formatDate, formatMoney, downloadCsv } from "@/lib/utils";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
 import { FileSpreadsheet, Plus, X, Trash2 } from "lucide-react";
 import { ModuleSearch, matchSearch } from "@/components/ModuleSearch";
+import { ledgerSubTabs } from "@/lib/ledger-categories";
 
 type LedgerRow = {
   id: number;
@@ -37,6 +38,7 @@ const emptyForm = {
 
 export default function LedgersPage() {
   const [tab, setTab] = useState("company");
+  const [subTab, setSubTab] = useState("company");
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -49,7 +51,7 @@ export default function LedgersPage() {
   const [error, setError] = useState("");
 
   async function load(type = tab) {
-    const qs = new URLSearchParams({ type });
+    const qs = new URLSearchParams({ type, sub_type: subTab });
     if (from) qs.set("from", from);
     if (to) qs.set("to", to);
     const res = await fetch(`/api/ledgers?${qs}`);
@@ -68,7 +70,7 @@ export default function LedgersPage() {
 
   useEffect(() => {
     load(tab);
-  }, [tab]);
+  }, [tab, subTab]);
 
   function openCreate() {
     setEditing(null);
@@ -160,6 +162,7 @@ export default function LedgersPage() {
             type="button"
             onClick={() => {
               setTab(t.id);
+              setSubTab(t.id === "company" ? "company" : t.id === "salesman" ? "salesman" : t.id);
               setQ("");
             }}
             className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
@@ -170,6 +173,23 @@ export default function LedgersPage() {
           </button>
         ))}
       </div>
+
+      {ledgerSubTabs[tab as keyof typeof ledgerSubTabs] && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {ledgerSubTabs[tab as keyof typeof ledgerSubTabs].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSubTab(item.id)}
+              className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+                subTab === item.id ? "bg-brand-600 text-white" : "bg-white text-slate-600 shadow-soft"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <ModuleSearch value={q} onChange={setQ} placeholder="Search by name or party..." />
 

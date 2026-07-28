@@ -38,6 +38,7 @@ function manualEntriesSQL(type: string, from: string | null, to: string | null, 
 
 export async function GET(req: NextRequest) {
   const type = new URL(req.url).searchParams.get("type") || "company";
+  const subType = new URL(req.url).searchParams.get("sub_type") || type;
   const db = getDb();
   const from = new URL(req.url).searchParams.get("from");
   const to = new URL(req.url).searchParams.get("to");
@@ -49,6 +50,29 @@ export async function GET(req: NextRequest) {
                CAST(COALESCE(total_expense, 0) as TEXT) as notes
                FROM purchases WHERE (deleted IS NULL OR deleted = 0)`;
     sql += dateFilter("purchase_date", from, to, params);
+
+    if (subType === "company-conditional") {
+      sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
+             COALESCE((SELECT SUM(conditional) FROM purchase_items WHERE purchase_id = purchases.id), 0) as debit,
+             0 as credit, 'Conditional' as source,
+             COALESCE((SELECT SUM(conditional) FROM purchase_items WHERE purchase_id = purchases.id), 0) as notes
+             FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND COALESCE((SELECT SUM(conditional) FROM purchase_items WHERE purchase_id = purchases.id), 0) > 0`;
+      sql += dateFilter("purchase_date", from, to, params);
+    } else if (subType === "company-hand") {
+      sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
+             COALESCE((SELECT SUM(hand_to_hand) FROM purchase_items WHERE purchase_id = purchases.id), 0) as debit,
+             0 as credit, 'Hand to Hand' as source,
+             COALESCE((SELECT SUM(hand_to_hand) FROM purchase_items WHERE purchase_id = purchases.id), 0) as notes
+             FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND COALESCE((SELECT SUM(hand_to_hand) FROM purchase_items WHERE purchase_id = purchases.id), 0) > 0`;
+      sql += dateFilter("purchase_date", from, to, params);
+    } else if (subType === "company-paid") {
+      sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
+             0 as debit, paid_amount as credit, 'Paid' as source,
+             CAST(COALESCE(total_expense, 0) as TEXT) as notes
+             FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND paid_amount > 0`;
+      sql += dateFilter("purchase_date", from, to, params);
+    }
+
     sql += ` UNION ALL ${manualEntriesSQL("company", from, to, params)}`;
     sql += " ORDER BY date DESC, id DESC";
     return NextResponse.json({ type, rows: db.prepare(sql).all(...params) });
@@ -108,14 +132,41 @@ export async function GET(req: NextRequest) {
                JOIN customers c ON c.id = s.customer_id
                WHERE (s.deleted IS NULL OR s.deleted = 0) AND (COALESCE(s.total_commission, 0) > 0 OR s.salesman_id IS NOT NULL)`;
     sql += dateFilter("s.sale_date", from, to, params);
+
+    if (subType === "salesman-to-customer") {
+      sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
+             COALESCE(sm.name, 'No Salesman') as party,
+             COALESCE(s.total_amount, 0) as debit,
+             0 as credit,
+             COALESCE(c.shop_name, c.name) as source,
+             'Salesman -> Customer' as notes
+             FROM sales s
+             LEFT JOIN salesmen sm ON sm.id = s.salesman_id
+             JOIN customers c ON c.id = s.customer_id
+             WHERE (s.deleted IS NULL OR s.deleted = 0) AND s.salesman_id IS NOT NULL`;
+      sql += dateFilter("s.sale_date", from, to, params);
+    } else if (subType === "customer-to-salesman") {
+      sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
+             COALESCE(c.shop_name, c.name) as party,
+             0 as debit,
+             COALESCE(s.total_amount, 0) as credit,
+             COALESCE(sm.name, 'No Salesman') as source,
+             'Customer -> Salesman' as notes
+             FROM sales s
+             JOIN customers c ON c.id = s.customer_id
+             LEFT JOIN salesmen sm ON sm.id = s.salesman_id
+             WHERE (s.deleted IS NULL OR s.deleted = 0) AND s.salesman_id IS NOT NULL`;
+      sql += dateFilter("s.sale_date", from, to, params);
+    }
+
     sql += ` UNION ALL ${manualEntriesSQL("salesman", from, to, params)}`;
     sql += " ORDER BY date DESC, id DESC";
     return NextResponse.json({
       type,
       rows: db.prepare(sql).all(...params),
       columns: {
-        debit: "Commission",
-        credit: "Paid",
+        debit: subType === "salesman-to-customer" ? "Salesman Amount" : subType === "customer-to-salesman" ? "Customer Amount" : "Commission",
+        credit: subType === "customer-to-salesman" ? "Customer Amount" : "Paid",
         notes: "Details",
       },
     });
