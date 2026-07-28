@@ -19,6 +19,23 @@ function dateFilter(
   return sql;
 }
 
+function manualEntriesSQL(type: string, from: string | null, to: string | null, params: string[]) {
+  let sql = `SELECT id, entry_date as date, ref, party, debit, credit, source, notes
+             FROM manual_ledger_entries
+             WHERE ledger_type = ? AND (deleted IS NULL OR deleted = 0)`;
+  params.push(type);
+  if (from) {
+    sql += " AND entry_date >= ?";
+    params.push(from);
+  }
+  if (to) {
+    sql += " AND entry_date <= ?";
+    params.push(to);
+  }
+  sql += " ORDER BY entry_date DESC, id DESC";
+  return sql;
+}
+
 export async function GET(req: NextRequest) {
   const type = new URL(req.url).searchParams.get("type") || "company";
   const db = getDb();
@@ -32,12 +49,12 @@ export async function GET(req: NextRequest) {
                CAST(COALESCE(total_expense, 0) as TEXT) as notes
                FROM purchases WHERE (deleted IS NULL OR deleted = 0)`;
     sql += dateFilter("purchase_date", from, to, params);
-    sql += " ORDER BY purchase_date DESC, id DESC";
+    sql += ` UNION ALL ${manualEntriesSQL("company", from, to, params)}`;
+    sql += " ORDER BY date DESC, id DESC";
     return NextResponse.json({ type, rows: db.prepare(sql).all(...params) });
   }
 
   if (type === "expense") {
-    // All expense sources: manual + sale bill expense + discount + purchase expense
     const params: string[] = [];
     let sql = `
       SELECT id, expense_date as date, category as ref, title as party,
@@ -70,13 +87,13 @@ export async function GET(req: NextRequest) {
       FROM purchases p
       WHERE (p.deleted IS NULL OR p.deleted = 0) AND COALESCE(p.total_expense, 0) > 0
       ${dateFilter("p.purchase_date", from, to, params)}
+      UNION ALL ${manualEntriesSQL("expense", from, to, params)}
       ORDER BY date DESC
     `;
     return NextResponse.json({ type, rows: db.prepare(sql).all(...params) });
   }
 
   if (type === "salesman") {
-    // Commission-focused salesman ledger
     const params: string[] = [];
     let sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
                COALESCE(sm.name, 'No Salesman') as party,
@@ -91,12 +108,40 @@ export async function GET(req: NextRequest) {
                JOIN customers c ON c.id = s.customer_id
                WHERE (s.deleted IS NULL OR s.deleted = 0) AND (COALESCE(s.total_commission, 0) > 0 OR s.salesman_id IS NOT NULL)`;
     sql += dateFilter("s.sale_date", from, to, params);
-    sql += " ORDER BY s.sale_date DESC, s.id DESC";
+    sql += ` UNION ALL ${manualEntriesSQL("salesman", from, to, params)}`;
+    sql += " ORDER BY date DESC, id DESC";
     return NextResponse.json({
       type,
       rows: db.prepare(sql).all(...params),
       columns: {
         debit: "Commission",
+        credit: "Paid",
+        notes: "Details",
+      },
+    });
+  }
+
+  if (type === "customer") {
+    const params: string[] = [];
+    let sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
+               COALESCE(c.shop_name, c.name) as party,
+               s.total_amount as debit,
+               s.paid_amount as credit,
+               'Sale' as source,
+               'Bakaya: ' || printf('%.0f', COALESCE(s.bill_bakaya, 0)) ||
+               ' | Disc: ' || printf('%.0f', COALESCE(s.total_discount, 0)) ||
+               ' | Empty: ' || printf('%.0f', COALESCE(s.empty_qty, 0)) as notes
+               FROM sales s
+               JOIN customers c ON c.id = s.customer_id
+               WHERE (s.deleted IS NULL OR s.deleted = 0) AND (c.deleted IS NULL OR c.deleted = 0)`;
+    sql += dateFilter("s.sale_date", from, to, params);
+    sql += ` UNION ALL ${manualEntriesSQL("customer", from, to, params)}`;
+    sql += " ORDER BY date DESC, id DESC";
+    return NextResponse.json({
+      type,
+      rows: db.prepare(sql).all(...params),
+      columns: {
+        debit: "Bill Amount",
         credit: "Paid",
         notes: "Details",
       },
@@ -136,7 +181,7 @@ export async function GET(req: NextRequest) {
 
     SELECT st.id, st.transfer_date as date,
            pr.name || ' ' || pr.size as party,
-           st.from_location || ' → ' || st.to_location as ref,
+           st.from_location || ' \u2192 ' || st.to_location as ref,
            st.quantity as debit, 0 as credit,
            'Transfer' as source, st.notes
     FROM stock_transfers st
@@ -156,6 +201,8 @@ export async function GET(req: NextRequest) {
     JOIN products pr ON pr.id = sa.product_id
     WHERE (sa.deleted IS NULL OR sa.deleted = 0)
     ${dateFilter("sa.adjust_date", from, to, params)}
+
+    UNION ALL ${manualEntriesSQL("floor", from, to, params)}
 
     ORDER BY date DESC
   `;

@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
+  "version": "3.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v2.0: soft-delete fix (deleted items no longer reappear), backup delete button, reset all button in settings, deleted_records sync tracking",
-  "updatedAt": "2026-07-25"
+  "notes": "v3.0: Manual ledger entries - add/edit/delete custom entries in all ledger tabs (Company, Expense, Customer, Salesman, Floor). Added manual_ledger_entries table, POST/DELETE API, and UI modal for entry management.",
+  "updatedAt": "2026-07-28"
 }

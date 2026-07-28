@@ -221,6 +221,19 @@ function ensureSchema(db: PepsiDb) {
       sync_id TEXT PRIMARY KEY,
       deleted_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS manual_ledger_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ledger_type TEXT NOT NULL CHECK (ledger_type IN ('company', 'expense', 'customer', 'salesman', 'floor')),
+      entry_date TEXT NOT NULL DEFAULT (date('now','localtime')),
+      ref TEXT,
+      party TEXT,
+      debit REAL NOT NULL DEFAULT 0,
+      credit REAL NOT NULL DEFAULT 0,
+      source TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
   `);
 
   addColumn(db, "products", "location", "TEXT NOT NULL DEFAULT 'main'");
@@ -277,6 +290,7 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "stock_adjustments", "deleted", "INTEGER NOT NULL DEFAULT 0");
   addColumn(db, "floors", "deleted", "INTEGER NOT NULL DEFAULT 0");
   addColumn(db, "paper_days", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "manual_ledger_entries", "deleted", "INTEGER NOT NULL DEFAULT 0");
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();
   if (!company) {
