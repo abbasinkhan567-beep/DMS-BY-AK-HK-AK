@@ -1,6 +1,6 @@
 {
-  "version": "8.0.0",
+  "version": "9.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v8.0: Fixed the manual ledger database schema so the new sub_type column is added automatically for existing installations and the bill-ledger auto-posting flow works without errors.",
+  "notes": "v9.0: Repaired the manual ledger table directly in the SQLite database so existing installs receive the missing sub_type column and the ledger auto-posting flow runs without schema errors.",
   "updatedAt": "2026-07-28"
 }

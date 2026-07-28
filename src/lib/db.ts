@@ -25,31 +25,29 @@ function addColumn(db: PepsiDb, table: string, column: string, def: string) {
 }
 
 function ensureManualLedgerSchema(db: PepsiDb) {
-  const exists = columnExists(db, "manual_ledger_entries", "id");
-  if (!exists) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS manual_ledger_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ledger_type TEXT NOT NULL CHECK (ledger_type IN ('company', 'expense', 'customer', 'salesman', 'floor')),
-        entry_date TEXT NOT NULL DEFAULT (date('now','localtime')),
-        ref TEXT,
-        party TEXT,
-        debit REAL NOT NULL DEFAULT 0,
-        credit REAL NOT NULL DEFAULT 0,
-        source TEXT,
-        notes TEXT,
-        sub_type TEXT,
-        deleted INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-      )
-    `);
-  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS manual_ledger_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ledger_type TEXT NOT NULL CHECK (ledger_type IN ('company', 'expense', 'customer', 'salesman', 'floor')),
+      entry_date TEXT NOT NULL DEFAULT (date('now','localtime')),
+      ref TEXT,
+      party TEXT,
+      debit REAL NOT NULL DEFAULT 0,
+      credit REAL NOT NULL DEFAULT 0,
+      source TEXT,
+      notes TEXT,
+      sub_type TEXT,
+      deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    )
+  `);
 
   addColumn(db, "manual_ledger_entries", "sub_type", "TEXT");
   addColumn(db, "manual_ledger_entries", "deleted", "INTEGER NOT NULL DEFAULT 0");
 }
 
 function ensureSchema(db: PepsiDb) {
+  ensureManualLedgerSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
