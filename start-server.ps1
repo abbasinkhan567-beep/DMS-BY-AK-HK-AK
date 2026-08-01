@@ -15,7 +15,10 @@ function Check-LastExit {
   param($label)
   if ($LASTEXITCODE) {
     Write-Msg "FAILED: $label (exit $LASTEXITCODE)"
-    if ($Setup) { Write-Host "ERROR: $label failed - check $log" -ForegroundColor Red }
+    if ($Setup) {
+      Write-Host "ERROR: $label failed - check $log" -ForegroundColor Red
+      if (Test-Path $log) { Get-Content $log -Tail 30 | ForEach-Object { Write-Host $_ } }
+    }
     exit 1
   }
 }
@@ -42,7 +45,11 @@ if ($hasGitRepo) {
       Write-Msg "Auto-update: fetching latest code..."
       git fetch origin main 2>&1 | Out-File $log -Append
       $local = git rev-parse HEAD 2>$null
-      git checkout -B main origin/main 2>&1 | Out-File $log -Append
+      # reset --hard (not checkout): npm 12 rewrites package-lock.json during installs,
+      # leaving it dirty, and `git checkout` then aborts with "local changes would be
+      # overwritten" - keeping the PC stuck on the old version forever. reset discards
+      # those rewrites; DBs are gitignored so no data is lost.
+      git reset --hard origin/main 2>&1 | Out-File $log -Append
       git clean -fd -e data/ 2>&1 | Out-File $log -Append
       $new = git rev-parse HEAD 2>$null
       if ($local -ne $new) {
@@ -58,8 +65,11 @@ if ($hasGitRepo) {
 
 if ($updated -or -not (Test-Path "$base\node_modules")) {
   Write-Msg "Installing packages..."
-  if ($Setup) { Write-Host "Running: npm install" }
-  npm install 2>&1 | Out-File $log -Append
+  if ($Setup) { Write-Host "Running: npm install --include=dev" }
+  # --include=dev: on npm 12, npm drops devDependencies (@types/react, typescript,
+  # tsx, ...) when the environment looks production-like, which then makes
+  # `next build` fail (type auto-install worker gets rejected with EALLOWSCRIPTS).
+  npm install --include=dev 2>&1 | Out-File $log -Append
   Check-LastExit "npm install"
   if ($Setup) { Write-Host "npm install done" }
 }

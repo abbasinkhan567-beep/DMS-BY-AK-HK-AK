@@ -170,30 +170,23 @@ export async function POST(req: NextRequest) {
       hasHead = false;
     }
     if (hasHead) {
-      try {
-        log += run("git add -A");
-        log += run("git stash push --include-untracked -m pepsi-auto-stash");
-      } catch {
-        log += "stash-skip\n";
-      }
+      log += "\n" + run("git fetch origin main");
+      // reset --hard (not checkout/stash): npm 12 rewrites package-lock.json during
+      // installs, which leaves it dirty and makes `git checkout` abort with "local
+      // changes would be overwritten" - keeping the PC stuck on the old version.
+      // reset discards those tracked rewrites; DBs are gitignored, so data is safe.
+      log += "\n" + run("git reset --hard origin/main");
+      log += "\n" + run("git clean -fd -e data/ -e .next/");
     } else {
       log += "no-commits\n";
       try { run("git clean -fd -e data/"); } catch {}
     }
-    log += "\n" + run("git fetch origin main");
-    log += "\n" + run("git checkout -B main origin/main");
-    log += "\n" + run("git clean -fd -e data/ -e .next/");
     // Server runs under NODE_ENV=production (next start), so a plain `npm install`
     // would omit devDependencies and prune @types/react/@types/node. --include=dev
     // forces them, so `next build` never triggers the type auto-install worker
     // (which fails on npm 12+: EALLOWSCRIPTS on the --allow-scripts flag).
     log += "\n" + run("npm install --include=dev");
     try { log += "\n" + run("npm approve-scripts --allow-scripts-pending 2>nul"); } catch { log += "\nallow-scripts-skip\n"; }
-    try {
-      log += "\n" + run('npm install --no-save @types/react @types/node 2>&1');
-    } catch {
-      log += "\ntype-deps-skip\n";
-    }
     if (fs.existsSync(path.join(process.cwd(), ".next"))) {
       fs.rmSync(path.join(process.cwd(), ".next"), { recursive: true, force: true });
     }

@@ -1,6 +1,6 @@
 {
-  "version": "10.2.0",
+  "version": "10.2.1",
   "name": "Pepsi Distribution",
-  "notes": "v10.2.0: Fixed the update failing on newer npm (12+) — Next.js tried to auto-install TypeScript types with a flag npm now rejects, so the build aborted. The update now installs the type packages itself and allows install scripts (esbuild/sharp) via package.json so Apply Updates succeeds on every PC.",
+  "notes": "v10.2.1: Updated the desktop launcher (start-server.ps1) to install with npm install --include=dev so TypeScript types are never pruned on npm 12, and it now prints the last lines of server-log.txt when a build fails so problems are visible immediately.",
   "updatedAt": "2026-08-01"
 }
