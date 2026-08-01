@@ -1,6 +1,6 @@
 {
-  "version": "10.2.3",
+  "version": "10.2.4",
   "name": "Pepsi Distribution",
-  "notes": "v10.2.3: FIXED ALL LEDGERS showing an error (500) - a double ORDER BY in the generated SQL broke the Company, Expense, Customer, Salesman and Floor ledgers, so new purchases were never visible. Every purchase now auto-appears in the Company Ledger immediately.",
+  "notes": "v10.2.4: Conditional and Hand-to-Hand are per-pack rates - the Company Ledger now shows the total (rate x quantity) instead of just the rate. Salesman Ledger now shows commission per pack details alongside the total.",
   "updatedAt": "2026-08-01"
 }
