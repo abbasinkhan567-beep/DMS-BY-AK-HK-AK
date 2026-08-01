@@ -1,6 +1,6 @@
 {
-  "version": "10.2.2",
+  "version": "10.2.3",
   "name": "Pepsi Distribution",
-  "notes": "v10.2.2: Updates now happen ONLY when you press Apply Updates in Settings → Updates. The Desktop icon / START.bat no longer auto-downloads code at startup — it just installs packages and starts the server.",
+  "notes": "v10.2.3: FIXED ALL LEDGERS showing an error (500) - a double ORDER BY in the generated SQL broke the Company, Expense, Customer, Salesman and Floor ledgers, so new purchases were never visible. Every purchase now auto-appears in the Company Ledger immediately.",
   "updatedAt": "2026-08-01"
 }

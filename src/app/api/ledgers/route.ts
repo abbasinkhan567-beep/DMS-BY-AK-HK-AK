@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { getLedgerSubTypeFilter } from "@/lib/ledger-categories";
+import { manualEntriesSQL } from "@/lib/ledger-sql";
 
 function dateFilter(
   column: string,
@@ -17,24 +17,6 @@ function dateFilter(
     sql += ` AND ${column} <= ?`;
     params.push(to);
   }
-  return sql;
-}
-
-function manualEntriesSQL(type: string, subType: string, from: string | null, to: string | null, params: string[]) {
-  const filter = getLedgerSubTypeFilter(type, subType);
-  let sql = `SELECT id, entry_date as date, ref, party, debit, credit, source, notes, sub_type, 1 as manual
-             FROM manual_ledger_entries
-             WHERE ledger_type = ? AND (deleted IS NULL OR deleted = 0) AND ${filter.clause}`;
-  params.push(type, filter.param);
-  if (from) {
-    sql += " AND entry_date >= ?";
-    params.push(from);
-  }
-  if (to) {
-    sql += " AND entry_date <= ?";
-    params.push(to);
-  }
-  sql += " ORDER BY entry_date DESC, id DESC";
   return sql;
 }
 
