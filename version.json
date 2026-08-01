@@ -1,6 +1,6 @@
 {
-  "version": "10.1.0",
+  "version": "10.2.0",
   "name": "Pepsi Distribution",
-  "notes": "v10.1.0: Fixed the Ledgers screen — every ledger (Company, Expense, Customer, Salesman, Floor) returned a server error after v10.0 because the auto-generated rows and manual rows had different column counts in the merged query. Purchases, sales and expenses also show once now (they were appearing twice because the ledger view and the auto-posted entries both listed them).",
+  "notes": "v10.2.0: Fixed the update failing on newer npm (12+) — Next.js tried to auto-install TypeScript types with a flag npm now rejects, so the build aborted. The update now installs the type packages itself and allows install scripts (esbuild/sharp) via package.json so Apply Updates succeeds on every PC.",
   "updatedAt": "2026-08-01"
 }

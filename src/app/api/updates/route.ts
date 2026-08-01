@@ -183,8 +183,17 @@ export async function POST(req: NextRequest) {
     log += "\n" + run("git fetch origin main");
     log += "\n" + run("git checkout -B main origin/main");
     log += "\n" + run("git clean -fd -e data/ -e .next/");
-    log += "\n" + run("npm install");
+    // Server runs under NODE_ENV=production (next start), so a plain `npm install`
+    // would omit devDependencies and prune @types/react/@types/node. --include=dev
+    // forces them, so `next build` never triggers the type auto-install worker
+    // (which fails on npm 12+: EALLOWSCRIPTS on the --allow-scripts flag).
+    log += "\n" + run("npm install --include=dev");
     try { log += "\n" + run("npm approve-scripts --allow-scripts-pending 2>nul"); } catch { log += "\nallow-scripts-skip\n"; }
+    try {
+      log += "\n" + run('npm install --no-save @types/react @types/node 2>&1');
+    } catch {
+      log += "\ntype-deps-skip\n";
+    }
     if (fs.existsSync(path.join(process.cwd(), ".next"))) {
       fs.rmSync(path.join(process.cwd(), ".next"), { recursive: true, force: true });
     }

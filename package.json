@@ -1,6 +1,6 @@
 {
   "name": "pepsi-distribution",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -28,5 +28,9 @@
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "tsx": "^4.19.2"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true
   }
 }
