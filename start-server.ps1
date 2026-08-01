@@ -63,16 +63,15 @@ if ($hasGitRepo) {
   }
 }
 
-if ($updated -or -not (Test-Path "$base\node_modules")) {
-  Write-Msg "Installing packages..."
-  if ($Setup) { Write-Host "Running: npm install --include=dev" }
-  # --include=dev: on npm 12, npm drops devDependencies (@types/react, typescript,
-  # tsx, ...) when the environment looks production-like, which then makes
-  # `next build` fail (type auto-install worker gets rejected with EALLOWSCRIPTS).
-  npm install --include=dev 2>&1 | Out-File $log -Append
-  Check-LastExit "npm install"
-  if ($Setup) { Write-Host "npm install done" }
-}
+Write-Msg "Installing packages..."
+if ($Setup) { Write-Host "Running: npm install --include=dev" }
+# Always run (cheap when up-to-date): --include=dev guarantees devDependencies
+# (@types/react, typescript, tsx, ...) even when the working tree didn't change —
+# a previous npm 12 run under a production-looking env can leave node_modules
+# pruned, and `next build` then fails on missing types.
+npm install --include=dev 2>&1 | Out-File $log -Append
+Check-LastExit "npm install"
+if ($Setup) { Write-Host "npm install done" }
 
 # Handle allow-scripts if needed
 try { npm approve-scripts --allow-scripts-pending 2>$null | Out-File $log -Append } catch {}
