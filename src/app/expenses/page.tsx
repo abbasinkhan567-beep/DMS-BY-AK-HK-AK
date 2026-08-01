@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
-import { formatDate, formatMoney, downloadCsv, printHtml } from "@/lib/utils";
+import { formatDate, formatMoney, downloadCsv, printHtml, todayLocal, escapeHtml } from "@/lib/utils";
 import {
   Button,
   Card,
@@ -29,7 +29,7 @@ type Expense = {
 type Salesman = { id: number; name: string };
 
 const empty = {
-  expense_date: new Date().toISOString().slice(0, 10),
+  expense_date: todayLocal(),
   category: "General",
   title: "",
   amount: 0,
@@ -50,11 +50,11 @@ export default function ExpensesPage() {
 
   async function load() {
     const [e, s] = await Promise.all([
-      fetch("/api/expenses").then((r) => r.json()),
-      fetch("/api/salesmen").then((r) => r.json()),
+      fetch("/api/expenses"),
+      fetch("/api/salesmen"),
     ]);
-    setRows(e);
-    setSalesmen(s);
+    if (e.ok) setRows(await e.json());
+    if (s.ok) setSalesmen(await s.json());
   }
 
   useEffect(() => {
@@ -101,13 +101,18 @@ export default function ExpensesPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await fetch("/api/expenses", {
+      const res = await fetch("/api/expenses", {
         method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           editing ? { ...form, id: editing.id } : { ...form, historical }
         ),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Save failed");
+        return;
+      }
       setOpen(false);
       await load();
     } finally {
@@ -117,7 +122,12 @@ export default function ExpensesPage() {
 
   async function remove(id: number) {
     if (!confirm("Delete this expense?")) return;
-    await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Delete failed");
+      return;
+    }
     await load();
   }
 
@@ -127,10 +137,10 @@ export default function ExpensesPage() {
       `<h1>Expense Voucher</h1>
        <h2>#${row.id} · ${formatDate(row.expense_date)}</h2>
        <div class="meta">
-         <div>Title: <strong>${row.title}</strong><br/>Category: ${row.category}</div>
-         <div>Paid From: ${row.paid_from}<br/>Amount: <strong>${formatMoney(row.amount)}</strong></div>
+         <div>Title: <strong>${escapeHtml(row.title)}</strong><br/>Category: ${escapeHtml(row.category)}</div>
+         <div>Paid From: ${escapeHtml(row.paid_from)}<br/>Amount: <strong>${formatMoney(row.amount)}</strong></div>
        </div>
-       <p>${row.notes || ""}</p>`
+       <p>${escapeHtml(row.notes || "")}</p>`
     );
   }
 

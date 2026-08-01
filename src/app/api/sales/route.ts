@@ -2,6 +2,7 @@
 import { getDb } from "@/lib/db";
 import { buildSaleAutoEntries } from "@/lib/accounting";
 import { buildSaleLedgerAutoEntries } from "@/lib/ledger-postings";
+import { todayLocal } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -65,6 +66,21 @@ function lineDiscount(item: SaleItemInput) {
   const rate = Number(item.discount_rate);
   if (rate > 0) return rate * (Number(item.quantity) || 0);
   return Number(item.discount) || 0;
+}
+
+/** Reverse the account balance deltas of old auto-posted entries and soft-delete them. */
+function reverseGeneralEntries(db: ReturnType<typeof getDb>, refNo: string) {
+  const rows = db
+    .prepare(
+      `SELECT id, account_id, entry_type, amount FROM general_entries
+       WHERE ref_no = ? AND (deleted IS NULL OR deleted = 0)`
+    )
+    .all(refNo) as Array<{ id: number; account_id: number; entry_type: string; amount: number }>;
+  for (const r of rows) {
+    const delta = r.entry_type === "debit" ? -r.amount : r.amount;
+    db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, r.account_id);
+    db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(r.id);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -147,7 +163,7 @@ export async function POST(req: NextRequest) {
           invoice_no || null,
           customer_id,
           salesman_id || null,
-          sale_date || new Date().toISOString().slice(0, 10),
+          sale_date || todayLocal(),
           total_amount,
           paid,
           payment_type,
@@ -225,7 +241,7 @@ export async function POST(req: NextRequest) {
           db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
           db.prepare(
             "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-          ).run(sale_date || new Date().toISOString().slice(0, 10), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${saleId}`);
+          ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${saleId}`);
         }
       }
 
@@ -233,7 +249,7 @@ export async function POST(req: NextRequest) {
       const ledgerEntries = buildSaleLedgerAutoEntries({
         saleId: saleIdNumber,
         invoiceNo: invoice_no || `#${saleIdNumber}`,
-        entryDate: sale_date || new Date().toISOString().slice(0, 10),
+        entryDate: sale_date || todayLocal(),
         party: customer?.name || "Customer",
         totalAmount: total_amount,
         paidAmount: paid,
@@ -289,6 +305,7 @@ export async function PUT(req: NextRequest) {
             bill_bakaya: number;
             total_amount: number;
             paid_amount: number;
+            is_historical: number;
           }
         | undefined;
       if (!old) throw new Error("Sale not found");
@@ -296,10 +313,12 @@ export async function PUT(req: NextRequest) {
       const oldItems = db
         .prepare("SELECT product_id, quantity FROM sale_items WHERE sale_id = ?")
         .all(id) as Array<{ product_id: number; quantity: number }>;
-      for (const item of oldItems) {
-        db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(item.quantity, item.product_id);
+      if (!old.is_historical) {
+        for (const item of oldItems) {
+          db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(item.quantity, item.product_id);
+        }
       }
-      if (old.bill_bakaya) {
+      if (!old.is_historical && old.bill_bakaya) {
         db.prepare("UPDATE customers SET balance = balance - ? WHERE id = ?").run(
           old.bill_bakaya,
           old.customer_id
@@ -334,7 +353,11 @@ export async function PUT(req: NextRequest) {
         expense3_label,
         expense3_amount = 0,
         notes,
+        historical = false,
+        is_historical = 0,
       } = body;
+
+      const isHistorical = Boolean(historical || is_historical);
 
       const itemsSubtotal = items.reduce(
         (sum: number, item: SaleItemInput) => sum + item.quantity * item.unit_price,
@@ -410,10 +433,12 @@ export async function PUT(req: NextRequest) {
           item.discount_rate || 0,
           lineTotal
         );
-        db.prepare("UPDATE products SET stock = stock - ? WHERE id = ?").run(item.quantity, item.product_id);
+        if (!isHistorical) {
+          db.prepare("UPDATE products SET stock = stock - ? WHERE id = ?").run(item.quantity, item.product_id);
+        }
       }
 
-      if (bakaya !== 0) {
+      if (!isHistorical && bakaya !== 0) {
         db.prepare("UPDATE customers SET balance = balance + ? WHERE id = ?").run(bakaya, customer_id);
       }
 
@@ -427,11 +452,9 @@ export async function PUT(req: NextRequest) {
         invoiceNo: invoice_no || `#${id}`,
       });
 
-      const existing = db.prepare("SELECT id FROM general_entries WHERE ref_no = ? AND narration LIKE ?").all(invoice_no || `#${id}`, `%${invoice_no || `#${id}`}%`) as Array<{ id: number }>;
-      for (const row of existing) {
-        db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
-      }
-      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(invoice_no || `#${id}`, "Sale");
+      const oldRef = invoice_no || `#${id}`;
+      reverseGeneralEntries(db, oldRef);
+      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(oldRef, "Sale");
 
       for (const entry of entries) {
         const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
@@ -454,8 +477,8 @@ export async function PUT(req: NextRequest) {
         invoiceNo: invoice_no || `#${id}`,
         entryDate: sale_date,
         party: customer?.name || "Customer",
-        totalAmount: items.reduce((sum: number, item: any) => sum + Number(item.unit_price || 0) * Number(item.quantity || 0), 0),
-        paidAmount: paid_amount || 0,
+        totalAmount: total_amount,
+        paidAmount: paid,
       });
       for (const ledgerEntry of ledgerEntries) {
         db.prepare(
@@ -489,21 +512,36 @@ export async function DELETE(req: NextRequest) {
   try {
     const tx = db.transaction(() => {
       const sale = db.prepare("SELECT * FROM sales WHERE id = ?").get(id) as
-        | { customer_id: number; bill_bakaya: number; total_amount: number; paid_amount: number }
+        | {
+            customer_id: number;
+            bill_bakaya: number;
+            total_amount: number;
+            paid_amount: number;
+            is_historical: number;
+          }
         | undefined;
       if (!sale) throw new Error("Sale not found");
 
       const items = db
         .prepare("SELECT product_id, quantity FROM sale_items WHERE sale_id = ?")
         .all(id) as Array<{ product_id: number; quantity: number }>;
-      for (const item of items) {
-        db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(item.quantity, item.product_id);
+      if (!sale.is_historical) {
+        for (const item of items) {
+          db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(item.quantity, item.product_id);
+        }
       }
 
       const due = sale.bill_bakaya ?? sale.total_amount - sale.paid_amount;
-      if (due !== 0) {
+      if (!sale.is_historical && due !== 0) {
         db.prepare("UPDATE customers SET balance = balance - ? WHERE id = ?").run(due, sale.customer_id);
       }
+
+      const saleRow = db.prepare("SELECT invoice_no FROM sales WHERE id = ?").get(id) as
+        | { invoice_no: string | null }
+        | undefined;
+      const ref = saleRow?.invoice_no || `#${id}`;
+      reverseGeneralEntries(db, ref);
+      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(ref, "Sale");
 
       const syncId = (db.prepare("SELECT sync_id FROM sales WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
       if (syncId) {

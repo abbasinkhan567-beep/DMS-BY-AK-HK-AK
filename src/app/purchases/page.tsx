@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelPurchaseBill, printPurchaseBill } from "@/lib/bills";
 import {
   Button,
@@ -72,7 +72,7 @@ export default function PurchasesPage() {
     invoice_no: "",
     supplier: "Pepsi Company",
     company_name: "Pepsi Company",
-    purchase_date: new Date().toISOString().slice(0, 10),
+    purchase_date: todayLocal(),
     paid_amount: 0,
     notes: "",
     expense1_label: "",
@@ -90,8 +90,8 @@ export default function PurchasesPage() {
       fetch("/api/purchases"),
       fetch("/api/products"),
     ]);
-    setPurchases(await pRes.json());
-    setProducts(await prodRes.json());
+    if (pRes.ok) setPurchases(await pRes.json());
+    if (prodRes.ok) setProducts(await prodRes.json());
   }
 
   useEffect(() => {
@@ -102,7 +102,12 @@ export default function PurchasesPage() {
     const params = new URLSearchParams(window.location.search);
     const d = params.get("date");
     const hist = params.get("historical") === "1";
-    if (!d && !hist) return;
+    const editId = params.get("id");
+    if (!d && !hist && !editId) return;
+    if (editId) {
+      openEdit(Number(editId));
+      return;
+    }
     setHistorical(hist);
     setEditingId(null);
     setForm((f) => ({
@@ -132,7 +137,7 @@ export default function PurchasesPage() {
       invoice_no: "",
       supplier: "Pepsi Company",
       company_name: "Pepsi Company",
-      purchase_date: new Date().toISOString().slice(0, 10),
+      purchase_date: todayLocal(),
       paid_amount: 0,
       notes: "",
       expense1_label: "",
@@ -239,7 +244,12 @@ export default function PurchasesPage() {
 
   async function remove(id: number) {
     if (!confirm("Delete this purchase? Stock will be adjusted.")) return;
-    await fetch(`/api/purchases?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/purchases?id=${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Delete failed");
+      return;
+    }
     await load();
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { todayLocal } from "@/lib/utils";
 
 export async function GET() {
   const db = getDb();
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
          VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
-        adjust_date || new Date().toISOString().slice(0, 10),
+        adjust_date || todayLocal(),
         product_id,
         old_qty,
         new_qty,

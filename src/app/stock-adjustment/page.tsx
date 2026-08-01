@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, todayLocal } from "@/lib/utils";
 import {
   Button,
   Card,
@@ -35,7 +35,7 @@ export default function StockAdjustmentPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    adjust_date: new Date().toISOString().slice(0, 10),
+    adjust_date: todayLocal(),
     product_id: 0,
     new_qty: 0,
     reason: "",
@@ -47,11 +47,11 @@ export default function StockAdjustmentPage() {
 
   async function load() {
     const [a, p] = await Promise.all([
-      fetch("/api/stock-adjustments").then((r) => r.json()),
-      fetch("/api/products").then((r) => r.json()),
+      fetch("/api/stock-adjustments"),
+      fetch("/api/products"),
     ]);
-    setRows(a);
-    setProducts(p);
+    if (a.ok) setRows(await a.json());
+    if (p.ok) setProducts(await p.json());
   }
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function StockAdjustmentPage() {
             onClick={() => {
               setError("");
               setForm({
-                adjust_date: new Date().toISOString().slice(0, 10),
+                adjust_date: todayLocal(),
                 product_id: 0,
                 new_qty: 0,
                 reason: "",

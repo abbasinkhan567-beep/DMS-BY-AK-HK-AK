@@ -1,4 +1,4 @@
-﻿import { formatDate, formatMoney, printHtml, downloadCsv } from "@/lib/utils";
+﻿import { formatDate, formatMoney, printHtml, downloadCsv, escapeHtml } from "@/lib/utils";
 
 type PurchaseBill = {
   id: number;
@@ -78,9 +78,9 @@ export async function printPurchaseBill(id: number) {
   const rows = (bill.items || [])
     .map(
       (i) => `<tr>
-      <td>${i.product_name || "-"}</td>
-      <td>${i.company_name || bill.company_name || bill.supplier}</td>
-      <td>${i.size || "-"}</td>
+      <td>${escapeHtml(i.product_name || "-")}</td>
+      <td>${escapeHtml(i.company_name || bill.company_name || bill.supplier)}</td>
+      <td>${escapeHtml(i.size || "-")}</td>
       <td>${i.quantity}</td>
       <td>${i.hand_to_hand || 0}</td>
       <td>${i.conditional || 0}</td>
@@ -92,11 +92,11 @@ export async function printPurchaseBill(id: number) {
 
   printHtml(
     `Purchase ${bill.invoice_no || bill.id}`,
-    `<h1>${company.name || "Pepsi Distribution"}</h1>
-     <h2>${company.phone || ""} ${company.address ? "· " + company.address : ""}</h2>
+    `<h1>${escapeHtml(company.name || "Pepsi Distribution")}</h1>
+     <h2>${escapeHtml(company.phone || "")} ${company.address ? "· " + escapeHtml(company.address) : ""}</h2>
      <div class="meta">
-       <div><strong>Purchase Bill</strong><br/>Invoice: ${bill.invoice_no || "#" + bill.id}</div>
-       <div>Date: ${formatDate(bill.purchase_date)}<br/>Supplier: ${bill.supplier}<br/>Company: ${bill.company_name || "-"}</div>
+       <div><strong>Purchase Bill</strong><br/>Invoice: ${escapeHtml(bill.invoice_no || "#" + bill.id)}</div>
+       <div>Date: ${formatDate(bill.purchase_date)}<br/>Supplier: ${escapeHtml(bill.supplier)}<br/>Company: ${escapeHtml(bill.company_name || "-")}</div>
      </div>
      <table>
        <thead><tr>
@@ -135,7 +135,7 @@ export async function printSaleBill(id: number) {
   const rows = (bill.items || [])
     .map(
       (i) => `<tr>
-      <td>${i.product_name || "-"}</td>
+      <td>${escapeHtml(i.product_name || "-")}</td>
       <td>${i.quantity}</td>
       <td>${formatMoney(i.unit_price)}</td>
       <td>${formatMoney(i.commission || 0)}</td>
@@ -147,11 +147,11 @@ export async function printSaleBill(id: number) {
 
   printHtml(
     `Sale ${bill.invoice_no || bill.id}`,
-    `<h1>${company.name || "Pepsi Distribution"}</h1>
-     <h2>${company.phone || ""} ${company.address ? "· " + company.address : ""}</h2>
+    `<h1>${escapeHtml(company.name || "Pepsi Distribution")}</h1>
+     <h2>${escapeHtml(company.phone || "")} ${company.address ? "· " + escapeHtml(company.address) : ""}</h2>
      <div class="meta">
-       <div><strong>Sale Bill</strong><br/>Invoice: ${bill.invoice_no || "#" + bill.id}<br/>Salesman: ${bill.salesman_name || "-"}</div>
-       <div>Date: ${formatDate(bill.sale_date)}<br/>Customer: ${bill.shop_name || bill.customer_name}<br/>Bank: ${bill.bank_account || "-"}</div>
+       <div><strong>Sale Bill</strong><br/>Invoice: ${escapeHtml(bill.invoice_no || "#" + bill.id)}<br/>Salesman: ${escapeHtml(bill.salesman_name || "-")}</div>
+       <div>Date: ${formatDate(bill.sale_date)}<br/>Customer: ${escapeHtml(bill.shop_name || bill.customer_name)}<br/>Bank: ${escapeHtml(bill.bank_account || "-")}</div>
      </div>
      <table>
        <thead><tr>
@@ -162,9 +162,9 @@ export async function printSaleBill(id: number) {
      <div class="totals">
        <div><span>Total Commission</span><span>${formatMoney(bill.total_commission || 0)}</span></div>
        <div><span>Total Discount</span><span>${formatMoney(bill.total_discount || 0)}</span></div>
-       <div><span>${bill.expense1_label || "Expense 1"}</span><span>${formatMoney(bill.expense1_amount || 0)}</span></div>
-       <div><span>${bill.expense2_label || "Expense 2"}</span><span>${formatMoney(bill.expense2_amount || 0)}</span></div>
-       <div><span>${bill.expense3_label || "Expense 3"}</span><span>${formatMoney(bill.expense3_amount || 0)}</span></div>
+       <div><span>${escapeHtml(bill.expense1_label || "Expense 1")}</span><span>${formatMoney(bill.expense1_amount || 0)}</span></div>
+       <div><span>${escapeHtml(bill.expense2_label || "Expense 2")}</span><span>${formatMoney(bill.expense2_amount || 0)}</span></div>
+       <div><span>${escapeHtml(bill.expense3_label || "Expense 3")}</span><span>${formatMoney(bill.expense3_amount || 0)}</span></div>
        <div><span>Bill Expense Total</span><span>${formatMoney(bill.total_bill_expense || 0)}</span></div>
        <div><span>Empty</span><span>${bill.empty_qty || 0}</span></div>
        <div><span>Paid</span><span>${formatMoney(bill.paid_amount)}</span></div>

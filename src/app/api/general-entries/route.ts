@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { todayLocal } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
          VALUES (?, ?, ?, ?, ?, ?)`
       )
       .run(
-        entry_date || new Date().toISOString().slice(0, 10),
+        entry_date || todayLocal(),
         account_id,
         entry_type,
         amount,

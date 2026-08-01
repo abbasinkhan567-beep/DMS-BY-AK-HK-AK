@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { dbPath, getDb, resetDbConnection } from "@/lib/db";
+import { todayLocal } from "@/lib/utils";
 
 export const backupsDir = path.join(process.cwd(), "data", "backups");
 export const docsBackupDir = path.join(
@@ -150,7 +151,7 @@ export function shouldAutoBackupToday(): boolean {
   try {
     const last = fs.readFileSync(MARKER, "utf8").trim();
     const day = last.slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
     return day !== today;
   } catch {
     return true;
@@ -233,7 +234,7 @@ export function readBackupFile(fileName?: string): { buffer: Buffer; fileName: s
     getDb();
     return {
       buffer,
-      fileName: `pepsi-backup-${new Date().toISOString().slice(0, 10)}.db`,
+      fileName: `pepsi-backup-${todayLocal()}.db`,
     };
   }
 

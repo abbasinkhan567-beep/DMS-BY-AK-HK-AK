@@ -42,7 +42,7 @@ export default function SalesmenPage() {
 
   async function load() {
     const res = await fetch("/api/salesmen");
-    setSalesmen(await res.json());
+    if (res.ok) setSalesmen(await res.json());
   }
 
   useEffect(() => {

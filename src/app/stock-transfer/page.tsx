@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, todayLocal } from "@/lib/utils";
 import {
   Button,
   Card,
@@ -34,7 +34,7 @@ export default function StockTransferPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Transfer | null>(null);
   const [form, setForm] = useState({
-    transfer_date: new Date().toISOString().slice(0, 10),
+    transfer_date: todayLocal(),
     product_id: 0,
     from_location: "main",
     to_location: "Floor 1",
@@ -47,11 +47,11 @@ export default function StockTransferPage() {
 
   async function load() {
     const [t, p] = await Promise.all([
-      fetch("/api/stock-transfers").then((r) => r.json()),
-      fetch("/api/products").then((r) => r.json()),
+      fetch("/api/stock-transfers"),
+      fetch("/api/products"),
     ]);
-    setRows(t);
-    setProducts(p);
+    if (t.ok) setRows(await t.json());
+    if (p.ok) setProducts(await p.json());
   }
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function StockTransferPage() {
               setEditing(null);
               setError("");
               setForm({
-                transfer_date: new Date().toISOString().slice(0, 10),
+                transfer_date: todayLocal(),
                 product_id: 0,
                 from_location: "main",
                 to_location: "Floor 1",

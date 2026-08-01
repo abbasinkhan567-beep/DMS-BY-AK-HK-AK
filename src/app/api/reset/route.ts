@@ -16,6 +16,7 @@ export async function POST() {
       db.exec("DELETE FROM stock_adjustments");
       db.exec("DELETE FROM expenses");
       db.exec("DELETE FROM paper_days");
+      db.exec("DELETE FROM manual_ledger_entries");
       db.exec("DELETE FROM products");
       db.exec("DELETE FROM customers");
       db.exec("DELETE FROM salesmen");

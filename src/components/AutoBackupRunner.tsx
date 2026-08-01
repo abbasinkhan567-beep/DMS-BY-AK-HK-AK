@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { todayLocal } from "@/lib/utils";
 
 /** Daily backup + merge-sync when online (both PCs keep all entries). */
 export function AutoBackupRunner() {
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
 
     async function ping() {
       try {

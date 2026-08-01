@@ -16,6 +16,7 @@ const SYNC_TABLES = [
   "stock_adjustments",
   "floors",
   "paper_days",
+  "manual_ledger_entries",
   "company_info",
 ] as const;
 
@@ -196,6 +197,18 @@ function backfillSyncIds(db: PepsiDb) {
       `UPDATE company_info SET sync_id = COALESCE(NULLIF(sync_id,''), 'company-1'),
        updated_at = COALESCE(updated_at, datetime('now','localtime')) WHERE id = 1`
     ).run();
+  }
+
+  if (tableExists(db, "manual_ledger_entries")) {
+    const rows = db
+      .prepare(`SELECT id FROM manual_ledger_entries WHERE sync_id IS NULL OR sync_id = ''`)
+      .all() as Array<{ id: number }>;
+    const upd = db.prepare(
+      `UPDATE manual_ledger_entries SET sync_id = ?, updated_at = ${updatedAtSql(db, "manual_ledger_entries")} WHERE id = ?`
+    );
+    for (const r of rows) {
+      upd.run(`${seed}-manual-ledger-${r.id}`, r.id);
+    }
   }
 
   const txTables: Array<{ table: string; created?: boolean }> = [

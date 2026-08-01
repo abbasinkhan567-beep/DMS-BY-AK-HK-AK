@@ -6,6 +6,12 @@ export function formatMoney(amount: number) {
   }).format(amount || 0);
 }
 
+export function todayLocal() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function formatDate(dateStr: string) {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
@@ -15,6 +21,15 @@ export function formatDate(dateStr: string) {
     month: "short",
     year: "numeric",
   });
+}
+
+export function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function cn(...classes: Array<string | false | null | undefined>) {

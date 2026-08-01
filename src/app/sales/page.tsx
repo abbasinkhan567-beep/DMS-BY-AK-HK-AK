@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelSaleBill, printSaleBill } from "@/lib/bills";
 import {
   Button,
@@ -73,7 +73,7 @@ export default function SalesPage() {
     invoice_no: "",
     customer_id: 0,
     salesman_id: 0,
-    sale_date: new Date().toISOString().slice(0, 10),
+    sale_date: todayLocal(),
     paid_amount: 0,
     payment_type: "cash",
     bill_bakaya: 0,
@@ -89,6 +89,7 @@ export default function SalesPage() {
   });
   const [items, setItems] = useState<LineItem[]>([emptyLine()]);
   const [q, setQ] = useState("");
+  const [bakayaEdited, setBakayaEdited] = useState(false);
 
   async function load() {
     const [sRes, pRes, cRes, mRes] = await Promise.all([
@@ -97,10 +98,10 @@ export default function SalesPage() {
       fetch("/api/customers"),
       fetch("/api/salesmen"),
     ]);
-    setSales(await sRes.json());
-    setProducts(await pRes.json());
-    setCustomers(await cRes.json());
-    setSalesmen(await mRes.json());
+    if (sRes.ok) setSales(await sRes.json());
+    if (pRes.ok) setProducts(await pRes.json());
+    if (cRes.ok) setCustomers(await cRes.json());
+    if (mRes.ok) setSalesmen(await mRes.json());
   }
 
   useEffect(() => {
@@ -111,7 +112,12 @@ export default function SalesPage() {
     const params = new URLSearchParams(window.location.search);
     const d = params.get("date");
     const hist = params.get("historical") === "1";
-    if (!d && !hist) return;
+    const editId = params.get("id");
+    if (!d && !hist && !editId) return;
+    if (editId) {
+      openEdit(Number(editId));
+      return;
+    }
     setHistorical(hist);
     setEditingId(null);
     setForm((f) => ({
@@ -159,7 +165,7 @@ export default function SalesPage() {
       invoice_no: "",
       customer_id: 0,
       salesman_id: 0,
-      sale_date: new Date().toISOString().slice(0, 10),
+      sale_date: todayLocal(),
       paid_amount: 0,
       payment_type: "cash",
       bill_bakaya: 0,
@@ -182,6 +188,7 @@ export default function SalesPage() {
     setEditingId(id);
     setHistorical(Boolean(bill.is_historical));
     setError("");
+    setBakayaEdited(false);
     setForm({
       invoice_no: bill.invoice_no || "",
       customer_id: bill.customer_id,
@@ -260,7 +267,7 @@ export default function SalesPage() {
           ...(editingId ? { id: editingId } : {}),
           ...form,
           salesman_id: form.salesman_id || null,
-          bill_bakaya: bakaya,
+          bill_bakaya: bakayaEdited ? Number(form.bill_bakaya) : bakaya,
           historical,
           items: validItems,
         }),
@@ -278,7 +285,12 @@ export default function SalesPage() {
 
   async function remove(id: number) {
     if (!confirm("Delete this sale?")) return;
-    await fetch(`/api/sales?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/sales?id=${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Delete failed");
+      return;
+    }
     await load();
   }
 
@@ -481,8 +493,13 @@ export default function SalesPage() {
             <Input
               label="Bill Balance Due"
               type="number"
-              value={bakaya}
-              readOnly
+              min={0}
+              value={bakayaEdited ? form.bill_bakaya : bakaya}
+              onChange={(e) => {
+                setBakayaEdited(true);
+                setForm({ ...form, bill_bakaya: Number(e.target.value) });
+              }}
+              placeholder="Auto: total - paid"
             />
           </div>
 

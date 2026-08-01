@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, FileSpreadsheet } from "lucide-react";
-import { ACCOUNT_TYPES, formatDate, formatMoney, downloadCsv } from "@/lib/utils";
+import { ACCOUNT_TYPES, formatDate, formatMoney, downloadCsv, todayLocal } from "@/lib/utils";
 import {
   Button,
   Card,
@@ -56,7 +56,7 @@ export default function GeneralEntryPage() {
     notes: "",
   });
   const [entryForm, setEntryForm] = useState({
-    entry_date: new Date().toISOString().slice(0, 10),
+    entry_date: todayLocal(),
     account_id: 0,
     entry_type: "debit",
     amount: 0,
@@ -68,11 +68,11 @@ export default function GeneralEntryPage() {
   async function load() {
     const qs = filterType ? `?type=${filterType}` : "";
     const [a, e] = await Promise.all([
-      fetch(`/api/accounts${qs}`).then((r) => r.json()),
-      fetch("/api/general-entries").then((r) => r.json()),
+      fetch(`/api/accounts${qs}`),
+      fetch("/api/general-entries"),
     ]);
-    setAccounts(a);
-    setEntries(e);
+    if (a.ok) setAccounts(await a.json());
+    if (e.ok) setEntries(await e.json());
   }
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export default function GeneralEntryPage() {
                 onClick={() => {
                   setEditEntry(null);
                   setEntryForm({
-                    entry_date: new Date().toISOString().slice(0, 10),
+                    entry_date: todayLocal(),
                     account_id: 0,
                     entry_type: "debit",
                     amount: 0,

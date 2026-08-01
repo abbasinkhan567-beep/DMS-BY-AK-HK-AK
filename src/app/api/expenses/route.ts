@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { buildExpenseAutoEntries } from "@/lib/accounting";
 import { buildExpenseLedgerAutoEntries } from "@/lib/ledger-postings";
+import { todayLocal } from "@/lib/utils";
+
+/** Reverse the account balance deltas of old auto-posted entries and soft-delete them. */
+function reverseGeneralEntries(db: ReturnType<typeof getDb>, refNo: string) {
+  const rows = db
+    .prepare(
+      `SELECT id, account_id, entry_type, amount FROM general_entries
+       WHERE ref_no = ? AND (deleted IS NULL OR deleted = 0)`
+    )
+    .all(refNo) as Array<{ id: number; account_id: number; entry_type: string; amount: number }>;
+  for (const r of rows) {
+    const delta = r.entry_type === "debit" ? -r.amount : r.amount;
+    db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, r.account_id);
+    db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(r.id);
+  }
+}
 
 export async function GET(req: NextRequest) {
   const db = getDb();
@@ -48,7 +64,7 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
-      expense_date || new Date().toISOString().slice(0, 10),
+      expense_date || todayLocal(),
       category,
       title,
       amount,
@@ -77,7 +93,7 @@ export async function POST(req: NextRequest) {
       db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
       db.prepare(
         "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-      ).run(expense_date || new Date().toISOString().slice(0, 10), accountId, entry.entryType, entry.amount, entry.narration, `EXP-${result.lastInsertRowid}`);
+      ).run(expense_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, `EXP-${result.lastInsertRowid}`);
     }
   }
 
@@ -85,7 +101,7 @@ export async function POST(req: NextRequest) {
   const ledgerEntries = buildExpenseLedgerAutoEntries({
     expenseId,
     invoiceNo: `EXP-${expenseId}`,
-    entryDate: expense_date || new Date().toISOString().slice(0, 10),
+    entryDate: expense_date || todayLocal(),
     party: title,
     amount,
     paidFrom: paid_from,
@@ -130,11 +146,8 @@ export async function PUT(req: NextRequest) {
     notes || null,
     id
   );
-  const existing = db.prepare("SELECT id FROM general_entries WHERE ref_no = ?").all(`EXP-${id}`) as Array<{ id: number }>;
-  for (const row of existing) {
-    db.prepare("UPDATE general_entries SET deleted = 1 WHERE id = ?").run(row.id);
-  }
-  db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(`EXP-${id}`, "Cash");
+  reverseGeneralEntries(db, `EXP-${id}`);
+  db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ?").run(`EXP-${id}`);
   const entries = buildExpenseAutoEntries({ title, amount, paidFrom: paid_from, invoiceNo: `EXP-${id}` });
   for (const entry of entries) {
     const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
@@ -187,6 +200,8 @@ export async function DELETE(req: NextRequest) {
   if (syncId) {
     db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);
   }
+  reverseGeneralEntries(db, `EXP-${id}`);
+  db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ?").run(`EXP-${id}`);
   db.prepare("UPDATE expenses SET deleted = 1 WHERE id = ?").run(id);
   return NextResponse.json({ ok: true });
 }

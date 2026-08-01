@@ -46,7 +46,7 @@ export default function CustomersPage() {
 
   async function load() {
     const res = await fetch("/api/customers");
-    setCustomers(await res.json());
+    if (res.ok) setCustomers(await res.json());
   }
 
   useEffect(() => {

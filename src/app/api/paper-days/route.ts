@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       .all(date);
     const expenses = db
     .prepare(
-      `SELECT id, expense_date, category, title, amount, is_historical
+      `SELECT id, expense_date, category, title, amount, paid_from, salesman_id, notes, is_historical
        FROM expenses WHERE (deleted IS NULL OR deleted = 0) AND expense_date = ? ORDER BY id DESC`
       )
       .all(date);

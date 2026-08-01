@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { todayLocal } from "@/lib/utils";
 
 export async function GET() {
   const db = getDb();
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
          VALUES (?, ?, ?, ?, ?, ?)`
       )
       .run(
-        transfer_date || new Date().toISOString().slice(0, 10),
+        transfer_date || todayLocal(),
         product_id,
         from_location,
         to_location,
@@ -73,9 +74,16 @@ export async function PUT(req: NextRequest) {
   const { id, transfer_date, from_location, to_location, notes } = body;
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
   const db = getDb();
+  const existing = db
+    .prepare(`SELECT product_id FROM stock_transfers WHERE id = ? AND (deleted IS NULL OR deleted = 0)`)
+    .get(id) as { product_id: number } | undefined;
+  if (!existing) return NextResponse.json({ error: "Transfer not found" }, { status: 404 });
   db.prepare(
     `UPDATE stock_transfers SET transfer_date=?, from_location=?, to_location=?, notes=? WHERE id=?`
   ).run(transfer_date, from_location, to_location, notes || null, id);
+  if (to_location) {
+    db.prepare("UPDATE products SET location = ? WHERE id = ?").run(to_location, existing.product_id);
+  }
   return NextResponse.json(
     db
       .prepare(

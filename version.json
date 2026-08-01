@@ -1,6 +1,6 @@
 {
-  "version": "9.0.0",
+  "version": "10.0.0",
   "name": "Pepsi Distribution",
-  "notes": "v9.0: Repaired the manual ledger table directly in the SQLite database so existing installs receive the missing sub_type column and the ledger auto-posting flow runs without schema errors.",
-  "updatedAt": "2026-07-28"
+  "notes": "v10.0: Bug fixes — account balances no longer double-count when bills/expenses are edited or deleted; historical (paper) records no longer corrupt stock; Ledgers no longer crash on date filters; paper-entry expense editing keeps paid-from/salesman/notes; edit buttons from paper entry now open the exact sale/purchase record; sale bakaya is editable; Ledgers page edits only manual entries via update (no id change); manual ledger entries now sync between PCs; all date defaults use local time; print-outs escape special characters.",
+  "updatedAt": "2026-08-01"
 }

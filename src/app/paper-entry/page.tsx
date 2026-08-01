@@ -13,7 +13,7 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
-import { formatDate, formatMoney, printHtml } from "@/lib/utils";
+import { formatDate, formatMoney, printHtml, todayLocal, escapeHtml } from "@/lib/utils";
 import { Button, Card, Input, Modal, PageHeader, Select, TextArea } from "@/components/ui";
 
 type DaySummary = {
@@ -29,9 +29,9 @@ type DayDetail = {
   date: string;
   paper: { status: string; notes: string | null } | null;
   summary: DaySummary;
-  sales: Array<{ id: number; invoice_no: string | null; customer_name: string; total_amount: number; paid_amount: number; is_historical?: number }>;
-  purchases: Array<{ id: number; invoice_no: string | null; supplier: string; total_amount: number; paid_amount: number; is_historical?: number }>;
-  expenses: Array<{ id: number; title: string; amount: number; category: string; expense_date: string; is_historical?: number }>;
+  sales: Array<{ id: number; invoice_no: string | null; sale_date: string; customer_name: string; total_amount: number; paid_amount: number; is_historical?: number }>;
+  purchases: Array<{ id: number; invoice_no: string | null; purchase_date: string; supplier: string; total_amount: number; paid_amount: number; is_historical?: number }>;
+  expenses: Array<{ id: number; title: string; amount: number; category: string; expense_date: string; paid_from?: string | null; salesman_id?: number | null; notes?: string | null; is_historical?: number }>;
 };
 
 type RecentRow = {
@@ -42,7 +42,7 @@ type RecentRow = {
 };
 
 export default function PaperEntryPage() {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayLocal());
   const [detail, setDetail] = useState<DayDetail | null>(null);
   const [recent, setRecent] = useState<RecentRow[]>([]);
   const [notes, setNotes] = useState("");
@@ -51,7 +51,15 @@ export default function PaperEntryPage() {
   const [saving, setSaving] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", amount: 0, category: "General", notes: "", expense_date: "" });
+  const [editForm, setEditForm] = useState({
+    title: "",
+    amount: 0,
+    category: "General",
+    notes: "",
+    expense_date: "",
+    paid_from: "Cash",
+    salesman_id: null as number | null,
+  });
   const [editId, setEditId] = useState<number | null>(null);
 
   const loadDay = useCallback(async (d: string) => {
@@ -124,7 +132,7 @@ export default function PaperEntryPage() {
         `<h1>Expense Voucher</h1>
          <h2>#${entry.id} · ${dateStr}</h2>
          <div class="meta">
-           <div>Title: <strong>${entry.title}</strong><br/>Category: ${entry.category || "-"}</div>
+           <div>Title: <strong>${escapeHtml(entry.title)}</strong><br/>Category: ${escapeHtml(entry.category || "-")}</div>
            <div>Amount: <strong>${formatMoney(Number(entry.amount))}</strong></div>
          </div>`
       );
@@ -134,7 +142,7 @@ export default function PaperEntryPage() {
         `<h1>Sale Invoice</h1>
          <h2>#${entry.id} · ${dateStr}</h2>
          <div class="meta">
-           <div>Customer: <strong>${entry.customer_name}</strong><br/>Invoice: ${entry.invoice_no || "-"}</div>
+           <div>Customer: <strong>${escapeHtml(entry.customer_name)}</strong><br/>Invoice: ${escapeHtml(entry.invoice_no || "-")}</div>
            <div>Total: <strong>${formatMoney(Number(entry.total_amount))}</strong><br/>Paid: ${formatMoney(Number(entry.paid_amount))}</div>
          </div>`
       );
@@ -144,7 +152,7 @@ export default function PaperEntryPage() {
         `<h1>Purchase Voucher</h1>
          <h2>#${entry.id} · ${dateStr}</h2>
          <div class="meta">
-           <div>Supplier: <strong>${entry.supplier}</strong><br/>Invoice: ${entry.invoice_no || "-"}</div>
+           <div>Supplier: <strong>${escapeHtml(entry.supplier)}</strong><br/>Invoice: ${escapeHtml(entry.invoice_no || "-")}</div>
            <div>Total: <strong>${formatMoney(Number(entry.total_amount))}</strong><br/>Paid: ${formatMoney(Number(entry.paid_amount))}</div>
          </div>`
       );
@@ -153,7 +161,15 @@ export default function PaperEntryPage() {
 
   function openEditExpense(exp: DayDetail["expenses"][number]) {
     setEditId(exp.id);
-    setEditForm({ title: exp.title, amount: exp.amount, category: exp.category || "General", notes: "", expense_date: exp.expense_date });
+    setEditForm({
+      title: exp.title,
+      amount: exp.amount,
+      category: exp.category || "General",
+      notes: exp.notes || "",
+      expense_date: exp.expense_date,
+      paid_from: exp.paid_from || "Cash",
+      salesman_id: exp.salesman_id ?? null,
+    });
     setEditOpen(true);
   }
 
@@ -164,7 +180,16 @@ export default function PaperEntryPage() {
       const res = await fetch("/api/expenses", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editId, ...editForm }),
+        body: JSON.stringify({
+          id: editId,
+          title: editForm.title,
+          amount: editForm.amount,
+          category: editForm.category,
+          notes: editForm.notes,
+          expense_date: editForm.expense_date,
+          paid_from: editForm.paid_from,
+          salesman_id: editForm.salesman_id,
+        }),
       });
       if (!res.ok) throw new Error("Save failed");
       setEditOpen(false);
@@ -290,7 +315,7 @@ export default function PaperEntryPage() {
                         <p className="text-xs text-muted">#{s.id} · {formatMoney(s.total_amount)}</p>
                       </div>
                       <div className="flex shrink-0 gap-1">
-                        <Link href={`/sales`}>
+                        <Link href={`/sales?id=${s.id}&date=${encodeURIComponent(s.sale_date)}&historical=1`}>
                           <Button variant="ghost" className="!px-2 !py-1" title="Edit">
                             <Pencil size={14} />
                           </Button>
@@ -313,7 +338,7 @@ export default function PaperEntryPage() {
                         <p className="text-xs text-muted">#{p.id} · {formatMoney(p.total_amount)}</p>
                       </div>
                       <div className="flex shrink-0 gap-1">
-                        <Link href={`/purchases`}>
+                        <Link href={`/purchases?id=${p.id}&date=${encodeURIComponent(p.purchase_date)}&historical=1`}>
                           <Button variant="ghost" className="!px-2 !py-1" title="Edit">
                             <Pencil size={14} />
                           </Button>
@@ -377,6 +402,14 @@ export default function PaperEntryPage() {
               onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
             />
           </div>
+          <Select
+            label="Paid From"
+            value={editForm.paid_from}
+            onChange={(e) => setEditForm({ ...editForm, paid_from: e.target.value })}
+          >
+            <option value="Cash">Cash</option>
+            <option value="Bank">Bank</option>
+          </Select>
           <TextArea
             label="Notes"
             value={editForm.notes}

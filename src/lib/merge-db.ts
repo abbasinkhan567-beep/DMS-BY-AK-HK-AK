@@ -22,6 +22,7 @@ const MERGE_TABLES = [
   "products", "customers", "salesmen", "purchases", "purchase_items",
   "sales", "sale_items", "expenses", "accounts", "general_entries",
   "stock_transfers", "stock_adjustments", "floors", "paper_days",
+  "manual_ledger_entries",
 ];
 
 export type MergeStats = {
@@ -234,6 +235,27 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
     added += mergePaperDays(local, remote, (u) => {
       updated += u;
     });
+    added += mergeSimpleTx(
+      local,
+      remote,
+      "manual_ledger_entries",
+      [
+        "ledger_type",
+        "entry_date",
+        "ref",
+        "party",
+        "debit",
+        "credit",
+        "source",
+        "notes",
+        "sub_type",
+        "created_at",
+      ],
+      () => ({}),
+      (u) => {
+        updated += u;
+      }
+    );
     mergeCompany(local, remote, (u) => {
       updated += u;
     });

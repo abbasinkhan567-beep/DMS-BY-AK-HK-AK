@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { seedIfEmpty } from "@/lib/seed";
+import { todayLocal } from "@/lib/utils";
 
 export async function GET() {
   try {
     seedIfEmpty();
     const db = getDb();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
 
   const stockValue = db
     .prepare("SELECT COALESCE(SUM(stock * purchase_price), 0) as v FROM products WHERE (deleted IS NULL OR deleted = 0)")

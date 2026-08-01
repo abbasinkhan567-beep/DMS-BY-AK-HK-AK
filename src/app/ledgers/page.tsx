@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { formatDate, formatMoney, downloadCsv } from "@/lib/utils";
+import { formatDate, formatMoney, downloadCsv, todayLocal } from "@/lib/utils";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
-import { FileSpreadsheet, Plus, X, Trash2 } from "lucide-react";
+import { FileSpreadsheet, Plus, X, Trash2, Pencil } from "lucide-react";
 import { ModuleSearch, matchSearch } from "@/components/ModuleSearch";
 import { ledgerSubTabs } from "@/lib/ledger-categories";
 
@@ -16,6 +16,8 @@ type LedgerRow = {
   credit: number;
   source: string | null;
   notes: string | number | null;
+  manual?: number;
+  sub_type?: string | null;
 };
 
 const tabs = [
@@ -27,13 +29,14 @@ const tabs = [
 ];
 
 const emptyForm = {
-  entry_date: new Date().toISOString().split("T")[0],
+  entry_date: todayLocal(),
   ref: "",
   party: "",
   debit: "",
   credit: "",
   source: "",
   notes: "",
+  sub_type: "",
 };
 
 export default function LedgersPage() {
@@ -74,7 +77,7 @@ export default function LedgersPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ ...emptyForm, entry_date: new Date().toISOString().split("T")[0] });
+    setForm({ ...emptyForm, entry_date: todayLocal() });
     setError("");
     setOpen(true);
   }
@@ -89,6 +92,7 @@ export default function LedgersPage() {
       credit: String(row.credit),
       source: row.source || "",
       notes: String(row.notes || ""),
+      sub_type: row.sub_type || "",
     });
     setError("");
     setOpen(true);
@@ -108,15 +112,12 @@ export default function LedgersPage() {
         credit: Number(form.credit) || 0,
         source: form.source,
         notes: form.notes,
+        sub_type: editing ? form.sub_type || subTab : subTab,
       };
-      const method = editing ? "DELETE" : "POST";
-      if (editing) {
-        await fetch(`/api/ledgers/entries?id=${editing.id}`, { method: "DELETE" });
-      }
       const res = await fetch("/api/ledgers/entries", {
-        method: "POST",
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(editing ? { ...body, id: editing.id } : body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -132,7 +133,12 @@ export default function LedgersPage() {
   async function remove(id: number) {
     if (!confirm("Delete this entry?")) return;
     try {
-      await fetch(`/api/ledgers/entries?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/ledgers/entries?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Delete failed");
+        return;
+      }
       await load();
     } catch {}
   }
@@ -253,16 +259,26 @@ export default function LedgersPage() {
                         <button
                           type="button"
                           onClick={() => openEdit(r)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-surface-muted"
-                          title="Edit"
+                          disabled={!r.manual}
+                          className={`rounded-lg p-1.5 ${
+                            r.manual
+                              ? "text-slate-500 hover:bg-surface-muted"
+                              : "cursor-not-allowed text-slate-300"
+                          }`}
+                          title={r.manual ? "Edit" : "Auto-generated entry — not editable"}
                         >
-                          <X size={16} />
+                          <Pencil size={16} />
                         </button>
                         <button
                           type="button"
                           onClick={() => remove(r.id)}
-                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
-                          title="Delete"
+                          disabled={!r.manual}
+                          className={`rounded-lg p-1.5 ${
+                            r.manual
+                              ? "text-rose-500 hover:bg-rose-50"
+                              : "cursor-not-allowed text-slate-300"
+                          }`}
+                          title={r.manual ? "Delete" : "Auto-generated entry — not deletable"}
                         >
                           <Trash2 size={16} />
                         </button>
