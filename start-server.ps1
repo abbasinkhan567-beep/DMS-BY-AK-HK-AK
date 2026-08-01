@@ -35,48 +35,22 @@ try {
   exit 1
 }
 
-# Auto-update: fetch latest code from GitHub if git repo exists
-$hasGitRepo = Test-Path "$base\.git"
-$updated = $false
-if ($hasGitRepo) {
-  try {
-    $remote = git remote get-url origin 2>$null
-    if ($remote) {
-      Write-Msg "Auto-update: fetching latest code..."
-      git fetch origin main 2>&1 | Out-File $log -Append
-      $local = git rev-parse HEAD 2>$null
-      # reset --hard (not checkout): npm 12 rewrites package-lock.json during installs,
-      # leaving it dirty, and `git checkout` then aborts with "local changes would be
-      # overwritten" - keeping the PC stuck on the old version forever. reset discards
-      # those rewrites; DBs are gitignored so no data is lost.
-      git reset --hard origin/main 2>&1 | Out-File $log -Append
-      git clean -fd -e data/ 2>&1 | Out-File $log -Append
-      $new = git rev-parse HEAD 2>$null
-      if ($local -ne $new) {
-        Write-Msg "Code changed, will rebuild"
-        $updated = $true
-      }
-      Write-Msg "Auto-update done"
-    }
-  } catch {
-    Write-Msg "Auto-update skipped (no remote)"
-  }
+# No auto-update here: code is updated ONLY via the in-app button
+# (Settings → Updates → Apply Updates), which pulls and rebuilds itself.
+# The launcher just installs missing packages and starts the server.
+$needsBuild = -not (Test-Path "$base\.next\BUILD_ID")
+
+if ($needsBuild -or -not (Test-Path "$base\node_modules")) {
+  Write-Msg "Installing packages..."
+  if ($Setup) { Write-Host "Running: npm install --include=dev" }
+  # --include=dev: guarantees devDependencies (@types/react, typescript, tsx, ...)
+  # are never omitted/pruned, so `next build` works on every npm version.
+  npm install --include=dev 2>&1 | Out-File $log -Append
+  Check-LastExit "npm install"
+  if ($Setup) { Write-Host "npm install done" }
 }
 
-Write-Msg "Installing packages..."
-if ($Setup) { Write-Host "Running: npm install --include=dev" }
-# Always run (cheap when up-to-date): --include=dev guarantees devDependencies
-# (@types/react, typescript, tsx, ...) even when the working tree didn't change —
-# a previous npm 12 run under a production-looking env can leave node_modules
-# pruned, and `next build` then fails on missing types.
-npm install --include=dev 2>&1 | Out-File $log -Append
-Check-LastExit "npm install"
-if ($Setup) { Write-Host "npm install done" }
-
-# Handle allow-scripts if needed
-try { npm approve-scripts --allow-scripts-pending 2>$null | Out-File $log -Append } catch {}
-
-if ($updated -or -not (Test-Path "$base\.next\BUILD_ID")) {
+if ($needsBuild) {
   if (Test-Path "$base\.next") { Remove-Item -Recurse -Force "$base\.next" }
   Write-Msg "Building app..."
   if ($Setup) { Write-Host "Running: npm run build (may take 1-2 min)..." }

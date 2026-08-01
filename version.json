@@ -1,6 +1,6 @@
 {
-  "version": "10.2.1",
+  "version": "10.2.2",
   "name": "Pepsi Distribution",
-  "notes": "v10.2.1: Updated the desktop launcher (start-server.ps1) to install with npm install --include=dev so TypeScript types are never pruned on npm 12, and it now prints the last lines of server-log.txt when a build fails so problems are visible immediately.",
+  "notes": "v10.2.2: Updates now happen ONLY when you press Apply Updates in Settings → Updates. The Desktop icon / START.bat no longer auto-downloads code at startup — it just installs packages and starts the server.",
   "updatedAt": "2026-08-01"
 }
