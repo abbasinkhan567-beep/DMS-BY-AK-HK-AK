@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
 import { formatDate, formatMoney, downloadCsv, printHtml, todayLocal, escapeHtml } from "@/lib/utils";
+import { fetchCompany } from "@/lib/bills";
 import {
   Button,
   Card,
@@ -131,10 +132,13 @@ export default function ExpensesPage() {
     await load();
   }
 
-  function printBill(row: Expense) {
+  async function printBill(row: Expense) {
+    const company = await fetchCompany();
     printHtml(
       `Expense ${row.id}`,
-      `<h1>Expense Voucher</h1>
+      `<h1>${escapeHtml(company.name || "Pepsi Distribution")}</h1>
+       <h2>${escapeHtml(company.phone || "")} ${company.address ? "· " + escapeHtml(company.address) : ""}</h2>
+       <strong>Expense Voucher</strong>
        <h2>#${row.id} · ${formatDate(row.expense_date)}</h2>
        <div class="meta">
          <div>Title: <strong>${escapeHtml(row.title)}</strong><br/>Category: ${escapeHtml(row.category)}</div>

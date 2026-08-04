@@ -22,7 +22,7 @@ const MERGE_TABLES = [
   "products", "customers", "salesmen", "purchases", "purchase_items",
   "sales", "sale_items", "expenses", "accounts", "general_entries",
   "stock_transfers", "stock_adjustments", "floors", "paper_days",
-  "manual_ledger_entries", "stockbook", "stockbook_items",
+  "manual_ledger_entries", "stockbook", "stockbook_items", "stockbook_sales",
 ];
 
 export type MergeStats = {
@@ -785,8 +785,9 @@ function mergeStockbook(
         local
           .prepare(
             `INSERT INTO stockbook_items (
-              sync_id, updated_at, stockbook_id, product_id, product_name, quantity, created_at
-            ) VALUES (?,?,?,?,?,?,?)`
+              sync_id, updated_at, stockbook_id, product_id, product_name,
+              quantity, opening_stock, floor_stock, stock_from_company, closing_stock, created_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
           )
           .run(
             itemSync || newSyncId(),
@@ -795,7 +796,42 @@ function mergeStockbook(
             productId,
             item.product_name ?? null,
             item.quantity ?? 0,
+            item.opening_stock ?? 0,
+            item.floor_stock ?? 0,
+            item.stock_from_company ?? 0,
+            item.closing_stock ?? 0,
             item.created_at ?? null
+          );
+      }
+      const sales = remote
+        .prepare("SELECT * FROM stockbook_sales WHERE stockbook_id = ?")
+        .all(remoteId) as Array<Record<string, unknown>>;
+      for (const s of sales) {
+        const productId = remapFk(local, remote, "products", s.product_id as number);
+        const salesmanId = remapFk(local, remote, "salesmen", s.salesman_id as number);
+        if (!productId || !salesmanId) continue;
+        const sSync = String(s.sync_id || "");
+        if (sSync && local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(sSync)) continue;
+        const localSale = sSync
+          ? (local
+              .prepare("SELECT id FROM stockbook_sales WHERE sync_id = ?")
+              .get(sSync) as { id: number } | undefined)
+          : undefined;
+        if (localSale) continue;
+        local
+          .prepare(
+            `INSERT INTO stockbook_sales (
+              sync_id, updated_at, stockbook_id, salesman_id, product_id, qty, created_at
+            ) VALUES (?,?,?,?,?,?,?)`
+          )
+          .run(
+            sSync || newSyncId(),
+            s.updated_at || new Date().toISOString(),
+            localId,
+            salesmanId,
+            productId,
+            s.qty ?? 0,
+            s.created_at ?? null
           );
       }
     };

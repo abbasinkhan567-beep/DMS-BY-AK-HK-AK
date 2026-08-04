@@ -19,6 +19,7 @@ const SYNC_TABLES = [
   "manual_ledger_entries",
   "stockbook",
   "stockbook_items",
+  "stockbook_sales",
   "company_info",
 ] as const;
 
@@ -220,6 +221,25 @@ function backfillSyncIds(db: PepsiDb) {
     for (const r of rows) {
       upd.run(
         stableSyncId(["sbookitem", r.parent_sync || String(r.id), String(r.product_id), String(r.quantity), String(r.id)]),
+        r.id
+      );
+    }
+  }
+
+  if (tableExists(db, "stockbook_sales")) {
+    const rows = db
+      .prepare(
+        `SELECT ss.id, sb.sync_id as parent_sync, ss.salesman_id, ss.product_id, ss.qty
+         FROM stockbook_sales ss JOIN stockbook sb ON sb.id = ss.stockbook_id
+         WHERE ss.sync_id IS NULL OR ss.sync_id = ''`
+      )
+      .all() as Array<{ id: number; parent_sync: string; salesman_id: number; product_id: number; qty: number }>;
+    const upd = db.prepare(
+      `UPDATE stockbook_sales SET sync_id = ?, updated_at = COALESCE(updated_at, datetime('now','localtime')) WHERE id = ?`
+    );
+    for (const r of rows) {
+      upd.run(
+        stableSyncId(["sbooksale", r.parent_sync || String(r.id), String(r.salesman_id), String(r.product_id), String(r.qty), String(r.id)]),
         r.id
       );
     }

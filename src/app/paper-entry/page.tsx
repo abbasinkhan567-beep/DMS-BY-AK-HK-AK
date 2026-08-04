@@ -14,6 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { formatDate, formatMoney, printHtml, todayLocal, escapeHtml } from "@/lib/utils";
+import { fetchCompany } from "@/lib/bills";
 import { Button, Card, Input, Modal, PageHeader, Select, TextArea } from "@/components/ui";
 
 type DaySummary = {
@@ -124,12 +125,16 @@ export default function PaperEntryPage() {
     }
   }
 
-  function printEntry(type: string, entry: Record<string, unknown>) {
+  async function printEntry(type: string, entry: Record<string, unknown>) {
+    const company = await fetchCompany();
+    const header = `<h1>${escapeHtml(company.name || "Pepsi Distribution")}</h1>
+     <h2>${escapeHtml(company.phone || "")} ${company.address ? "· " + escapeHtml(company.address) : ""}</h2>`;
     const dateStr = formatDate(String(entry.expense_date || entry.sale_date || entry.purchase_date || date));
     if (type === "expenses") {
       printHtml(
         `Expense ${entry.id}`,
-        `<h1>Expense Voucher</h1>
+        `${header}
+         <strong>Expense Voucher</strong>
          <h2>#${entry.id} · ${dateStr}</h2>
          <div class="meta">
            <div>Title: <strong>${escapeHtml(entry.title)}</strong><br/>Category: ${escapeHtml(entry.category || "-")}</div>
@@ -139,7 +144,8 @@ export default function PaperEntryPage() {
     } else if (type === "sales") {
       printHtml(
         `Sale ${entry.id}`,
-        `<h1>Sale Invoice</h1>
+        `${header}
+         <strong>Sale Invoice</strong>
          <h2>#${entry.id} · ${dateStr}</h2>
          <div class="meta">
            <div>Customer: <strong>${escapeHtml(entry.customer_name)}</strong><br/>Invoice: ${escapeHtml(entry.invoice_no || "-")}</div>
@@ -149,7 +155,8 @@ export default function PaperEntryPage() {
     } else {
       printHtml(
         `Purchase ${entry.id}`,
-        `<h1>Purchase Voucher</h1>
+        `${header}
+         <strong>Purchase Voucher</strong>
          <h2>#${entry.id} · ${dateStr}</h2>
          <div class="meta">
            <div>Supplier: <strong>${escapeHtml(entry.supplier)}</strong><br/>Invoice: ${escapeHtml(entry.invoice_no || "-")}</div>

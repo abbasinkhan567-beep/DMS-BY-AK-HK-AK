@@ -1,6 +1,6 @@
 {
-  "version": "10.3.2",
+  "version": "10.3.3",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.2: Fixed commission/conditional/hand rates error 'Please enter a valid value, nearest 1 and 2' - all money inputs now accept decimal values (step=any).",
+  "notes": "v10.3.3: Stockbook redesigned as a bill-style sheet - products as columns, opening stock, per-salesman pack rows with row totals, total sale, floor stock, auto+manual stock from company, closing stock (next day opening auto-fills); print/edit/delete with company name from Settings on all bills.",
   "updatedAt": "2026-08-04"
 }

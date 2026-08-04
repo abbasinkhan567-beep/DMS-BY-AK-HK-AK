@@ -197,3 +197,83 @@ export async function excelSaleBill(id: number) {
     },
   ]);
 }
+
+type StockbookPrintProduct = {
+  name: string;
+  size?: string | null;
+  opening: number;
+  floor: number;
+  company: number;
+  closing: number;
+};
+
+type StockbookPrintSalesman = {
+  name: string;
+  qty: Record<string, number>;
+};
+
+export function printStockbookBill(opts: {
+  companyName?: string;
+  companyPhone?: string;
+  companyAddress?: string;
+  date: string;
+  note?: string;
+  products: StockbookPrintProduct[];
+  salesmen: StockbookPrintSalesman[];
+}) {
+  const headers = ["Particulars", ...opts.products.map((p) => escapeHtml(p.name)), "Total"];
+  const qtyCell = (pid: string, qty: number) =>
+    `<td style="text-align:center">${qty || 0}</td>`;
+  const rowTotal = (vals: number[]) =>
+    `<td style="text-align:center;font-weight:600">${vals.reduce((s, v) => s + (v || 0), 0)}</td>`;
+
+  const headRow = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>`;
+
+  const row = (label: string, vals: number[], bold = false) =>
+    `<tr><td><strong>${label}</strong></td>${opts.products
+      .map((_, i) => qtyCell(String(i), vals[i] || 0))
+      .join("")}${rowTotal(vals)}</tr>`;
+
+  const opening = opts.products.map((p) => p.opening);
+  const floor = opts.products.map((p) => p.floor);
+  const company = opts.products.map((p) => p.company);
+  const closing = opts.products.map((p) => p.closing);
+  const totalSale = opts.products.map((_, i) =>
+    opts.salesmen.reduce((s, sm) => s + (sm.qty[String(i)] || 0), 0)
+  );
+
+  const salesmanRows = opts.salesmen
+    .map(
+      (sm) =>
+        `<tr><td>${escapeHtml(sm.name)}</td>${opts.products
+          .map((_, i) => qtyCell(String(i), sm.qty[String(i)] || 0))
+          .join("")}${rowTotal(opts.products.map((_, i) => sm.qty[String(i)] || 0))}</tr>`
+    )
+    .join("");
+
+  const boldRow = (label: string, vals: number[]) =>
+    `<tr style="background:#f8fafc"><td><strong>${label}</strong></td>${opts.products
+      .map((_, i) => `<td style="text-align:center;font-weight:700">${vals[i] || 0}</td>`)
+      .join("")}${rowTotal(vals)}</tr>`;
+
+  printHtml(
+    `Stock Sheet ${opts.date}`,
+    `<h1>${escapeHtml(opts.companyName || "Pepsi Distribution")}</h1>
+     <h2>${escapeHtml(opts.companyPhone || "")} ${opts.companyAddress ? "· " + escapeHtml(opts.companyAddress) : ""}</h2>
+     <div class="meta">
+       <div><strong>Daily Stock Sheet</strong><br/>Date: ${formatDate(opts.date)}</div>
+       <div>${opts.note ? "Note: " + escapeHtml(opts.note) : ""}</div>
+     </div>
+     <table>
+       <thead>${headRow}</thead>
+       <tbody>
+         ${row("Opening Stock", opening)}
+         ${salesmanRows}
+         ${boldRow("Total Sale", totalSale)}
+         ${row("Floor Stock", floor)}
+         ${row("Stock From Company", company)}
+         ${boldRow("Closing Stock", closing)}
+       </tbody>
+     </table>`
+  );
+}
