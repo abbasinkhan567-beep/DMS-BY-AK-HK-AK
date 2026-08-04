@@ -1,6 +1,6 @@
 {
   "name": "pepsi-distribution",
-  "version": "10.2.4",
+  "version": "10.2.5",
   "private": true,
   "engines": {
     "node": ">=22.13.0"

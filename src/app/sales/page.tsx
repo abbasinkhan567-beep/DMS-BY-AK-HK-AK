@@ -561,7 +561,7 @@ export default function SalesPage() {
                       onChange={(e) =>
                         updateItem(index, { commission_rate: Number(e.target.value) })
                       }
-                      placeholder="e.g. 2"
+                      placeholder="e.g. 0.5"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -574,7 +574,7 @@ export default function SalesPage() {
                         onChange={(e) =>
                           updateItem(index, { discount_rate: Number(e.target.value) })
                         }
-                        placeholder="e.g. 2"
+                        placeholder="e.g. 0.5"
                       />
                       {items.length > 1 && (
                         <Button

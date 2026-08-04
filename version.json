@@ -1,6 +1,6 @@
 {
-  "version": "10.2.4",
+  "version": "10.2.5",
   "name": "Pepsi Distribution",
-  "notes": "v10.2.4: Conditional and Hand-to-Hand are per-pack rates - the Company Ledger now shows the total (rate x quantity) instead of just the rate. Salesman Ledger now shows commission per pack details alongside the total.",
-  "updatedAt": "2026-08-01"
+  "notes": "v10.2.5: commission supports paisa rates (0.5 / 1.5 per pack) - amounts no longer rounded to whole rupees anywhere in the system",
+  "updatedAt": "2026-08-04"
 }

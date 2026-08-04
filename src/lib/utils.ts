@@ -2,7 +2,8 @@ export function formatMoney(amount: number) {
   return new Intl.NumberFormat("en-PK", {
     style: "currency",
     currency: "PKR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: Number.isInteger(amount || 0) ? 0 : 2,
+    maximumFractionDigits: 2,
   }).format(amount || 0);
 }
 

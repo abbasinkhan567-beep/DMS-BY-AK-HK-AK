@@ -34,14 +34,14 @@ export async function GET(req: NextRequest) {
       sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
              COALESCE((SELECT SUM(conditional * quantity) FROM purchase_items WHERE purchase_id = purchases.id), 0) as debit,
              0 as credit, 'Conditional' as source,
-             COALESCE((SELECT printf('%.0f/pack x %.0f qty', MAX(conditional), SUM(quantity)) FROM purchase_items WHERE purchase_id = purchases.id), '') as notes,
+             COALESCE((SELECT printf('%.2f/pack x %.2f qty', MAX(conditional), SUM(quantity)) FROM purchase_items WHERE purchase_id = purchases.id), '') as notes,
              NULL as sub_type, 0 as manual
              FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND COALESCE((SELECT SUM(conditional * quantity) FROM purchase_items WHERE purchase_id = purchases.id), 0) > 0`;
     } else if (subType === "company-hand") {
       sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
              COALESCE((SELECT SUM(hand_to_hand * quantity) FROM purchase_items WHERE purchase_id = purchases.id), 0) as debit,
              0 as credit, 'Hand to Hand' as source,
-             COALESCE((SELECT printf('%.0f/pack x %.0f qty', MAX(hand_to_hand), SUM(quantity)) FROM purchase_items WHERE purchase_id = purchases.id), '') as notes,
+             COALESCE((SELECT printf('%.2f/pack x %.2f qty', MAX(hand_to_hand), SUM(quantity)) FROM purchase_items WHERE purchase_id = purchases.id), '') as notes,
              NULL as sub_type, 0 as manual
              FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND COALESCE((SELECT SUM(hand_to_hand * quantity) FROM purchase_items WHERE purchase_id = purchases.id), 0) > 0`;
     } else if (subType === "company-paid") {
@@ -144,10 +144,10 @@ export async function GET(req: NextRequest) {
              COALESCE(s.total_commission, 0) as debit,
              0 as credit,
              COALESCE(c.shop_name, c.name) as source,
-             'Commission: ' || printf('%.0f', COALESCE(s.total_commission, 0)) ||
-             ' | Per Pack: ' || printf('%.0f', COALESCE((SELECT MAX(commission_rate) FROM sale_items WHERE sale_id = s.id), 0)) ||
-             ' | Sale: ' || printf('%.0f', s.total_amount) ||
-             ' | Discount: ' || printf('%.0f', COALESCE(s.total_discount, 0)) as notes, NULL as sub_type, 0 as manual
+             'Commission: ' || printf('%.2f', COALESCE(s.total_commission, 0)) ||
+             ' | Per Pack: ' || printf('%.2f', COALESCE((SELECT MAX(commission_rate) FROM sale_items WHERE sale_id = s.id), 0)) ||
+             ' | Sale: ' || printf('%.2f', s.total_amount) ||
+             ' | Discount: ' || printf('%.2f', COALESCE(s.total_discount, 0)) as notes, NULL as sub_type, 0 as manual
              FROM sales s
              LEFT JOIN salesmen sm ON sm.id = s.salesman_id
              JOIN customers c ON c.id = s.customer_id
@@ -174,9 +174,9 @@ export async function GET(req: NextRequest) {
                s.total_amount as debit,
                s.paid_amount as credit,
                'Sale' as source,
-               'Bakaya: ' || printf('%.0f', COALESCE(s.bill_bakaya, 0)) ||
-               ' | Disc: ' || printf('%.0f', COALESCE(s.total_discount, 0)) ||
-               ' | Empty: ' || printf('%.0f', COALESCE(s.empty_qty, 0)) as notes, NULL as sub_type, 0 as manual
+               'Bakaya: ' || printf('%.2f', COALESCE(s.bill_bakaya, 0)) ||
+               ' | Disc: ' || printf('%.2f', COALESCE(s.total_discount, 0)) ||
+               ' | Empty: ' || printf('%.2f', COALESCE(s.empty_qty, 0)) as notes, NULL as sub_type, 0 as manual
                FROM sales s
                JOIN customers c ON c.id = s.customer_id
                WHERE (s.deleted IS NULL OR s.deleted = 0) AND (c.deleted IS NULL OR c.deleted = 0)
@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
            (SELECT COALESCE(SUM(si.quantity), 0) FROM sale_items si WHERE si.sale_id = s.id) as debit,
            COALESCE(s.empty_qty, 0) as credit,
            'Sale OUT' as source,
-           COALESCE(sm.name, '-') || ' | Empty return: ' || printf('%.0f', COALESCE(s.empty_qty, 0)) as notes, NULL as sub_type, 0 as manual
+           COALESCE(sm.name, '-') || ' | Empty return: ' || printf('%.2f', COALESCE(s.empty_qty, 0)) as notes, NULL as sub_type, 0 as manual
     FROM sales s
     JOIN customers c ON c.id = s.customer_id
     LEFT JOIN salesmen sm ON sm.id = s.salesman_id
