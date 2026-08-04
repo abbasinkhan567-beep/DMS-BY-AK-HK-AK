@@ -7,6 +7,7 @@ import { createBackup } from "@/lib/backup";
 import { mergeRemoteIntoLocal } from "@/lib/merge-db";
 import { ensureSyncSchema } from "@/lib/sync-ids";
 import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
+import { injectGitHubToken, normalizeGitHubRepoUrl } from "@/lib/github-url";
 
 const SYNC_BRANCH = "data-sync";
 const SYNC_LOCK = path.join(process.cwd(), "data", ".sync.lock");
@@ -100,11 +101,13 @@ function ensureGitRepo() {
 function getOriginUrl(): string | null {
   ensureGitRepo();
   try {
-    return run("git remote get-url origin").trim() || null;
+    const raw = run("git remote get-url origin").trim();
+    return raw ? normalizeGitHubRepoUrl(raw) : null;
   } catch {
     try {
-      run(`git remote add origin ${DEFAULT_GITHUB_REPO}`);
-      return DEFAULT_GITHUB_REPO;
+      const defaultRemote = normalizeGitHubRepoUrl(DEFAULT_GITHUB_REPO);
+      run(`git remote add origin ${defaultRemote}`);
+      return defaultRemote;
     } catch {
       return null;
     }
@@ -114,11 +117,8 @@ function getOriginUrl(): string | null {
 /** Inject token into https GitHub URL for push/pull without interactive login. */
 function authedRemoteUrl(url: string): string {
   const token = getSyncToken();
-  if (!token) return url;
-  if (url.startsWith("https://") && url.includes("github.com")) {
-    return url.replace("https://", `https://${token}@`);
-  }
-  return url;
+  if (!token) return normalizeGitHubRepoUrl(url);
+  return injectGitHubToken(url, token);
 }
 
 function flushDb() {

@@ -3,7 +3,7 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
-import { isValidGitHubRepoUrl, normalizeGitHubRepoUrl } from "@/lib/github-url";
+import { injectGitHubToken, isValidGitHubRepoUrl, normalizeGitHubRepoUrl } from "@/lib/github-url";
 
 function readVersion() {
   try {
@@ -84,9 +84,10 @@ export async function GET() {
   info.hasRemote = hasRemote();
   if (!info.hasRemote) {
     try {
-      run(`git remote add origin ${DEFAULT_GITHUB_REPO}`);
+      const defaultRemote = normalizeGitHubRepoUrl(DEFAULT_GITHUB_REPO);
+      run(`git remote add origin ${defaultRemote}`);
       info.hasRemote = true;
-      info.remoteUrl = DEFAULT_GITHUB_REPO;
+      info.remoteUrl = defaultRemote;
     } catch {
       info.status = "no_remote";
       info.message = `Set GitHub URL to ${DEFAULT_GITHUB_REPO}`;
@@ -96,8 +97,11 @@ export async function GET() {
   }
 
   try {
-    info.remoteUrl = run("git remote get-url origin").trim();
-    run("git fetch origin main");
+    const rawRemote = run("git remote get-url origin").trim();
+    const remoteUrl = normalizeGitHubRepoUrl(rawRemote);
+    const token = typeof process.env.GITHUB_TOKEN === "string" ? process.env.GITHUB_TOKEN : "";
+    info.remoteUrl = remoteUrl;
+    run(`git fetch ${injectGitHubToken(remoteUrl, token) || remoteUrl} main`);
     let localHash = "";
     try {
       localHash = run("git rev-parse HEAD").trim();

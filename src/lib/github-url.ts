@@ -26,12 +26,22 @@ export function normalizeGitHubRepoUrl(url: string): string {
   const value = url.trim();
   if (!value) return "";
 
-  if (/^git@github\.com:/i.test(value)) {
-    return `https://github.com/${value.replace(/^git@github\.com:/i, "").replace(/\.git$/i, "")}.git`;
+  if (/^git@github\.com[:/]/i.test(value)) {
+    const normalized = value.replace(/^git@github\.com[:/]/i, "");
+    const parts = normalized.replace(/\.git$/i, "").split("/").filter(Boolean);
+    if (parts.length >= 2) {
+      return `https://github.com/${parts[0]}/${parts[1]}.git`;
+    }
+    return value;
   }
 
   if (/^ssh:\/\/git@github\.com\//i.test(value)) {
-    return `https://github.com/${value.replace(/^ssh:\/\/git@github\.com\//i, "").replace(/\.git$/i, "")}.git`;
+    const normalized = value.replace(/^ssh:\/\/git@github\.com\//i, "").replace(/\.git$/i, "");
+    const parts = normalized.split("/").filter(Boolean);
+    if (parts.length >= 2) {
+      return `https://github.com/${parts[0]}/${parts[1]}.git`;
+    }
+    return value;
   }
 
   if (/^https?:\/\//i.test(value)) {
@@ -49,4 +59,28 @@ export function normalizeGitHubRepoUrl(url: string): string {
   }
 
   return value;
+}
+
+export function injectGitHubToken(url: string, token: string): string {
+  const value = url.trim();
+  if (!value || !token) return value;
+
+  const normalized = normalizeGitHubRepoUrl(value);
+  if (!isValidGitHubRepoUrl(normalized)) return value;
+
+  if (/^https?:\/\//i.test(normalized)) {
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.hostname.toLowerCase() !== "github.com" && parsed.hostname.toLowerCase() !== "www.github.com") {
+        return value;
+      }
+      parsed.username = token;
+      parsed.password = "";
+      return parsed.toString();
+    } catch {
+      return value;
+    }
+  }
+
+  return normalized;
 }
