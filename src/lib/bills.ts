@@ -45,6 +45,7 @@ type SaleBill = {
   total_bill_expense?: number;
   items: Array<{
     product_name?: string | null;
+    size?: string | null;
     quantity: number;
     unit_price: number;
     commission?: number;
@@ -136,6 +137,7 @@ export async function printSaleBill(id: number) {
     .map(
       (i) => `<tr>
       <td>${escapeHtml(i.product_name || "-")}</td>
+      <td>${escapeHtml(i.size || (i as { linked_size?: string }).linked_size || "-")}</td>
       <td>${i.quantity}</td>
       <td>${formatMoney(i.unit_price)}</td>
       <td>${formatMoney(i.commission || 0)}</td>
@@ -155,7 +157,7 @@ export async function printSaleBill(id: number) {
      </div>
      <table>
        <thead><tr>
-         <th>Product</th><th>Qty</th><th>Rate</th><th>Commission</th><th>Discount</th><th>Total</th>
+         <th>Product</th><th>Size</th><th>Qty</th><th>Rate</th><th>Commission</th><th>Discount</th><th>Total</th>
        </tr></thead>
        <tbody>${rows}</tbody>
      </table>
@@ -180,6 +182,7 @@ export async function excelSaleBill(id: number) {
     ...(bill.items || []).map((i) => ({
       Type: "Item",
       Product: i.product_name,
+      Size: i.size || (i as { linked_size?: string }).linked_size || "",
       Quantity: i.quantity,
       Rate: i.unit_price,
       Commission: i.commission || 0,
@@ -221,7 +224,7 @@ export function printStockbookBill(opts: {
   products: StockbookPrintProduct[];
   salesmen: StockbookPrintSalesman[];
 }) {
-  const headers = ["Particulars", ...opts.products.map((p) => escapeHtml(p.name)), "Total"];
+  const headers = ["Particulars", ...opts.products.map((p) => `${escapeHtml(p.name)}${p.size ? " (" + escapeHtml(p.size) + ")" : ""}`), "Total"];
   const qtyCell = (pid: string, qty: number) =>
     `<td style="text-align:center">${qty || 0}</td>`;
   const rowTotal = (vals: number[]) =>

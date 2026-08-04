@@ -63,7 +63,6 @@ export default function StockbookPage() {
   const [form, setForm] = useState({ book_date: todayLocal(), note: "" });
   const [cols, setCols] = useState<Product[]>([]);
   const [opening, setOpening] = useState<Record<number, number>>({});
-  const [floor, setFloor] = useState<Record<number, number>>({});
   const [companyIn, setCompanyIn] = useState<Record<number, number>>({});
   const [saleRows, setSaleRows] = useState<SalesmanRow[]>([emptySalesmanRow()]);
   const [addProductId, setAddProductId] = useState(0);
@@ -103,7 +102,6 @@ export default function StockbookPage() {
     setForm({ book_date: date, note: "" });
     setCols([]);
     setOpening({});
-    setFloor({});
     setCompanyIn({});
     setSaleRows([emptySalesmanRow()]);
     setAddProductId(0);
@@ -118,7 +116,6 @@ export default function StockbookPage() {
       setCols(d.products || []);
       setOpening(d.opening || {});
       setCompanyIn(d.stock_from_company || {});
-      setFloor({});
     } catch {
       /* ignore */
     }
@@ -147,15 +144,12 @@ export default function StockbookPage() {
       }))
     );
     const openingMap: Record<number, number> = {};
-    const floorMap: Record<number, number> = {};
     const companyMap: Record<number, number> = {};
     for (const i of items) {
       openingMap[i.product_id] = money(i.opening_stock);
-      floorMap[i.product_id] = money(i.floor_stock);
       companyMap[i.product_id] = money(i.stock_from_company);
     }
     setOpening(openingMap);
-    setFloor(floorMap);
     setCompanyIn(companyMap);
     const bySalesman = new Map<number, Record<number, number>>();
     for (const s of sales) {
@@ -191,11 +185,6 @@ export default function StockbookPage() {
       delete n[pid];
       return n;
     });
-    setFloor((o) => {
-      const n = { ...o };
-      delete n[pid];
-      return n;
-    });
     setCompanyIn((o) => {
       const n = { ...o };
       delete n[pid];
@@ -226,8 +215,12 @@ export default function StockbookPage() {
     return saleRows.reduce((s, r) => s + money(r.qty[pid]), 0);
   }
 
+  function floorAutoFor(pid: number) {
+    return Math.max(0, money(opening[pid]) - totalSaleFor(pid));
+  }
+
   function closingFor(pid: number) {
-    return money(floor[pid]) + money(companyIn[pid]);
+    return floorAutoFor(pid) + money(companyIn[pid]);
   }
 
   const grandTotalSale = useMemo(
@@ -239,8 +232,8 @@ export default function StockbookPage() {
     [cols, opening]
   );
   const grandFloor = useMemo(
-    () => cols.reduce((s, c) => s + money(floor[c.id]), 0),
-    [cols, floor]
+    () => cols.reduce((s, c) => s + floorAutoFor(c.id), 0),
+    [cols, opening, saleRows]
   );
   const grandCompany = useMemo(
     () => cols.reduce((s, c) => s + money(companyIn[c.id]), 0),
@@ -248,7 +241,7 @@ export default function StockbookPage() {
   );
   const grandClosing = useMemo(
     () => cols.reduce((s, c) => s + closingFor(c.id), 0),
-    [cols, floor, companyIn]
+    [cols, opening, saleRows, companyIn]
   );
 
   async function save(e: FormEvent) {
@@ -261,7 +254,7 @@ export default function StockbookPage() {
     const items = cols.map((c) => ({
       product_id: c.id,
       opening_stock: money(opening[c.id]),
-      floor_stock: money(floor[c.id]),
+      floor_stock: floorAutoFor(c.id),
       stock_from_company: money(companyIn[c.id]),
       closing_stock: closingFor(c.id),
     }));
@@ -658,8 +651,8 @@ export default function StockbookPage() {
                 <tr className="border-b border-slate-100">
                   <td className="px-3 py-2 font-semibold text-slate-700">Floor Stock</td>
                   {cols.map((c) => (
-                    <td key={c.id} className="px-2 py-2 text-center">
-                      {cellInput(money(floor[c.id]), (v) => setFloor({ ...floor, [c.id]: v }))}
+                    <td key={c.id} className="px-2 py-2 text-center font-semibold text-slate-700">
+                      {floorAutoFor(c.id)}
                     </td>
                   ))}
                   <td className="px-3 py-2 text-center font-bold">{grandFloor}</td>
