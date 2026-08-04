@@ -656,7 +656,7 @@ export default function StockbookPage() {
                 </tr>
 
                 <tr className="border-b border-slate-100">
-                  <td className="px-3 py-2 font-semibold text-slate-700">Floor Stock (after sale)</td>
+                  <td className="px-3 py-2 font-semibold text-slate-700">Floor Stock</td>
                   {cols.map((c) => (
                     <td key={c.id} className="px-2 py-2 text-center">
                       {cellInput(money(floor[c.id]), (v) => setFloor({ ...floor, [c.id]: v }))}
@@ -667,7 +667,7 @@ export default function StockbookPage() {
 
                 <tr className="border-b border-slate-100">
                   <td className="px-3 py-2 font-semibold text-slate-700">
-                    Stock From Company (auto + edit)
+                    Stock From Company
                   </td>
                   {cols.map((c) => (
                     <td key={c.id} className="px-2 py-2 text-center">
@@ -682,7 +682,7 @@ export default function StockbookPage() {
 
                 <tr className="bg-slate-50">
                   <td className="px-3 py-2 font-bold text-slate-800">
-                    Closing Stock (next day opening)
+                    Closing Stock
                   </td>
                   {cols.map((c) => (
                     <td key={c.id} className="px-2 py-2 text-center font-bold">
