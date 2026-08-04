@@ -1,6 +1,6 @@
 {
-  "version": "10.2.5",
+  "version": "10.3.0",
   "name": "Pepsi Distribution",
-  "notes": "v10.2.5: commission supports paisa rates (0.5 / 1.5 per pack) - amounts no longer rounded to whole rupees anywhere in the system",
+  "notes": "v10.3.0: NEW Stockbook module - date-wise daily stock record with per-product quantities and a note section (product select karo to current stock auto-fill hota hai)",
   "updatedAt": "2026-08-04"
 }

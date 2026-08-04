@@ -240,6 +240,23 @@ function ensureSchema(db: PepsiDb) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS stockbook (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_date TEXT NOT NULL,
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stockbook_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      stockbook_id INTEGER NOT NULL REFERENCES stockbook(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id),
+      product_name TEXT,
+      quantity REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS deleted_records (
       sync_id TEXT PRIMARY KEY,
       deleted_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
@@ -314,6 +331,12 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "stock_adjustments", "deleted", "INTEGER NOT NULL DEFAULT 0");
   addColumn(db, "floors", "deleted", "INTEGER NOT NULL DEFAULT 0");
   addColumn(db, "paper_days", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "stockbook", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "stockbook_items", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "stockbook", "sync_id", "TEXT");
+  addColumn(db, "stockbook", "updated_at", "TEXT");
+  addColumn(db, "stockbook_items", "sync_id", "TEXT");
+  addColumn(db, "stockbook_items", "updated_at", "TEXT");
   ensureManualLedgerSchema(db);
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();

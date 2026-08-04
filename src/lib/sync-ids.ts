@@ -17,6 +17,8 @@ const SYNC_TABLES = [
   "floors",
   "paper_days",
   "manual_ledger_entries",
+  "stockbook",
+  "stockbook_items",
   "company_info",
 ] as const;
 
@@ -189,6 +191,37 @@ function backfillSyncIds(db: PepsiDb) {
     );
     for (const r of rows) {
       upd.run(stableSyncId(["paper", r.entry_date]), r.id);
+    }
+  }
+
+  if (tableExists(db, "stockbook")) {
+    const rows = db
+      .prepare(`SELECT id, book_date FROM stockbook WHERE sync_id IS NULL OR sync_id = ''`)
+      .all() as Array<{ id: number; book_date: string }>;
+    const upd = db.prepare(
+      `UPDATE stockbook SET sync_id = ?, updated_at = ${updatedAtSql(db, "stockbook")} WHERE id = ?`
+    );
+    for (const r of rows) {
+      upd.run(stableSyncId(["stockbook", r.book_date]), r.id);
+    }
+  }
+
+  if (tableExists(db, "stockbook_items")) {
+    const rows = db
+      .prepare(
+        `SELECT si.id, sb.sync_id as parent_sync, si.product_id, si.quantity
+         FROM stockbook_items si JOIN stockbook sb ON sb.id = si.stockbook_id
+         WHERE si.sync_id IS NULL OR si.sync_id = ''`
+      )
+      .all() as Array<{ id: number; parent_sync: string; product_id: number; quantity: number }>;
+    const upd = db.prepare(
+      `UPDATE stockbook_items SET sync_id = ?, updated_at = COALESCE(updated_at, datetime('now','localtime')) WHERE id = ?`
+    );
+    for (const r of rows) {
+      upd.run(
+        stableSyncId(["sbookitem", r.parent_sync || String(r.id), String(r.product_id), String(r.quantity), String(r.id)]),
+        r.id
+      );
     }
   }
 

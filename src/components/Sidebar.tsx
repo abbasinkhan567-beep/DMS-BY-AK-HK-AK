@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   TrendingUp,
   FileText,
+  NotebookPen,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const businessLinks = [
   { href: "/ledgers", label: "Ledgers", icon: BookOpen },
   { href: "/stock-transfer", label: "Stock Transfer", icon: ArrowLeftRight },
   { href: "/stock-adjustment", label: "Stock Adjustment", icon: SlidersHorizontal },
+  { href: "/stockbook", label: "Stockbook", icon: NotebookPen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

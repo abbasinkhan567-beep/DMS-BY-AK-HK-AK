@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   TrendingUp,
   FileText,
+  NotebookPen,
 } from "lucide-react";
 import { formatMoney, readJson } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
@@ -45,6 +46,7 @@ const modules = [
   { href: "/ledgers", label: "Ledgers", desc: "Company / Floor", icon: BookOpen },
   { href: "/stock-transfer", label: "Stock Transfer", desc: "Warehouse shift", icon: ArrowLeftRight },
   { href: "/stock-adjustment", label: "Stock Adjustment", desc: "Correct quantity", icon: SlidersHorizontal },
+  { href: "/stockbook", label: "Stockbook", desc: "Daily stock record", icon: NotebookPen },
   { href: "/settings", label: "Settings", desc: "Company & backup", icon: Settings },
 ];
 

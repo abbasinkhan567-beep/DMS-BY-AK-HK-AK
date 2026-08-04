@@ -22,7 +22,7 @@ const MERGE_TABLES = [
   "products", "customers", "salesmen", "purchases", "purchase_items",
   "sales", "sale_items", "expenses", "accounts", "general_entries",
   "stock_transfers", "stock_adjustments", "floors", "paper_days",
-  "manual_ledger_entries",
+  "manual_ledger_entries", "stockbook", "stockbook_items",
 ];
 
 export type MergeStats = {
@@ -233,6 +233,9 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
       (extras) => extras.product_id != null
     );
     added += mergePaperDays(local, remote, (u) => {
+      updated += u;
+    });
+    added += mergeStockbook(local, remote, (u) => {
       updated += u;
     });
     added += mergeSimpleTx(
@@ -740,6 +743,87 @@ function mergePaperDays(
       local
         .prepare(`UPDATE paper_days SET status='done', updated_at=? WHERE id=?`)
         .run(row.updated_at || new Date().toISOString(), existing.id);
+      updated++;
+    }
+  }
+  onUpdated(updated);
+  return added;
+}
+
+function mergeStockbook(
+  local: PepsiDb,
+  remote: PepsiDb,
+  onUpdated: (n: number) => void
+) {
+  let added = 0;
+  let updated = 0;
+  const rows = remote
+    .prepare("SELECT * FROM stockbook WHERE (deleted IS NULL OR deleted = 0)")
+    .all() as Array<Record<string, unknown>>;
+  for (const row of rows) {
+    const syncId = String(row.sync_id || "");
+    if (!syncId) continue;
+    const existing = local
+      .prepare("SELECT id, updated_at, deleted FROM stockbook WHERE sync_id = ?")
+      .get(syncId) as { id: number; updated_at: string; deleted: number } | undefined;
+
+    const insertItems = (localId: number, remoteId: number) => {
+      const items = remote
+        .prepare("SELECT * FROM stockbook_items WHERE stockbook_id = ?")
+        .all(remoteId) as Array<Record<string, unknown>>;
+      for (const item of items) {
+        const productId = remapFk(local, remote, "products", item.product_id as number);
+        if (!productId) continue;
+        const itemSync = String(item.sync_id || "");
+        if (itemSync && local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(itemSync)) continue;
+        const localItem = itemSync
+          ? (local
+              .prepare("SELECT id FROM stockbook_items WHERE sync_id = ?")
+              .get(itemSync) as { id: number } | undefined)
+          : undefined;
+        if (localItem) continue;
+        local
+          .prepare(
+            `INSERT INTO stockbook_items (
+              sync_id, updated_at, stockbook_id, product_id, product_name, quantity, created_at
+            ) VALUES (?,?,?,?,?,?,?)`
+          )
+          .run(
+            itemSync || newSyncId(),
+            item.updated_at || new Date().toISOString(),
+            localId,
+            productId,
+            item.product_name ?? null,
+            item.quantity ?? 0,
+            item.created_at ?? null
+          );
+      }
+    };
+
+    if (!existing) {
+      const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+      if (isDeleted) continue;
+      const result = local
+        .prepare(
+          `INSERT INTO stockbook (sync_id, updated_at, book_date, note, created_at)
+           VALUES (?,?,?,?,?)`
+        )
+        .run(
+          syncId,
+          row.updated_at || new Date().toISOString(),
+          row.book_date,
+          row.note ?? null,
+          row.created_at ?? null
+        );
+      insertItems(Number(result.lastInsertRowid), Number(row.id));
+      added++;
+    } else if (Number(existing.deleted) === 1) {
+      continue;
+    } else if (newer(String(row.updated_at || ""), existing.updated_at)) {
+      local
+        .prepare(`UPDATE stockbook SET book_date=?, note=?, updated_at=? WHERE id=?`)
+        .run(row.book_date, row.note ?? null, row.updated_at, existing.id);
+      insertItems(existing.id, Number(row.id));
       updated++;
     }
   }
