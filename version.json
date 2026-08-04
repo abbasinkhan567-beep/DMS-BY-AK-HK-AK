@@ -1,6 +1,6 @@
 {
-  "version": "10.3.0",
+  "version": "10.3.1",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.0: NEW Stockbook module - date-wise daily stock record with per-product quantities and a note section (product select karo to current stock auto-fill hota hai)",
+  "notes": "v10.3.1: Fixed GitHub remote handling for sync and updates so SSH/HTTPS remotes and token-based auth work reliably on office PCs.",
   "updatedAt": "2026-08-04"
 }
