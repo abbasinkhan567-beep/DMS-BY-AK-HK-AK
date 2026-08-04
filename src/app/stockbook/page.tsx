@@ -299,7 +299,22 @@ export default function StockbookPage() {
     await load();
   }
 
-  function printDay(r: SavedDay) {
+  function salesmanGroups(r: SavedDay) {
+  const map = new Map<number, { id: number; name: string; qty: Record<number, number> }>();
+  for (const s of r.sales || []) {
+    if (!map.has(s.salesman_id))
+      map.set(s.salesman_id, {
+        id: s.salesman_id,
+        name: s.salesman_name || `Salesman ${s.salesman_id}`,
+        qty: {},
+      });
+    map.get(s.salesman_id)!.qty[s.product_id] =
+      (map.get(s.salesman_id)!.qty[s.product_id] || 0) + money(s.qty);
+  }
+  return [...map.values()];
+}
+
+function printDay(r: SavedDay) {
     const items = r.items || [];
     const sales = r.sales || [];
     const bySalesman = new Map<number, { name: string; qty: Record<string, number> }>();
@@ -438,33 +453,16 @@ export default function StockbookPage() {
                           {items.reduce((s, i) => s + money(i.opening_stock), 0)}
                         </td>
                       </tr>
-                      {[...new Set(r.sales || []).values()]
-                        .map((s) => s.salesman_name)
-                        .filter((n, i, a) => a.indexOf(n) === i)
-                        .map((name, ri) => (
-                          <tr key={ri} className="border-b border-slate-50">
-                            <td className="px-5 py-3 text-slate-700">{name}</td>
+                      {salesmanGroups(r).map((g) => (
+                          <tr key={g.id} className="border-b border-slate-50">
+                            <td className="px-5 py-3 text-slate-700">{g.name}</td>
                             {items.map((i) => (
                               <td key={i.product_id} className="px-2 py-3 text-center">
-                                {money(
-                                  (r.sales || []).find(
-                                    (s) => s.salesman_name === name && s.product_id === i.product_id
-                                  )?.qty
-                                )}
+                                {money(g.qty[i.product_id])}
                               </td>
                             ))}
                             <td className="px-5 py-3 text-center">
-                              {items.reduce(
-                                (s, i) =>
-                                  s +
-                                  money(
-                                    (r.sales || []).find(
-                                      (x) =>
-                                        x.salesman_name === name && x.product_id === i.product_id
-                                    )?.qty
-                                  ),
-                                0
-                              )}
+                              {items.reduce((s, i) => s + money(g.qty[i.product_id]), 0)}
                             </td>
                           </tr>
                         ))}
