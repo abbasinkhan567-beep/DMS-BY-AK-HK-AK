@@ -382,6 +382,7 @@ export default function PurchasesPage() {
               label="Paid Amount"
               type="number"
               min={0}
+              step="any"
               value={form.paid_amount}
               onChange={(e) => setForm({ ...form, paid_amount: Number(e.target.value) })}
             />
@@ -437,6 +438,7 @@ export default function PurchasesPage() {
                     label="Hand to Hand"
                     type="number"
                     min={0}
+                    step="any"
                     value={item.hand_to_hand}
                     onChange={(e) => updateItem(index, { hand_to_hand: Number(e.target.value) })}
                   />
@@ -444,6 +446,7 @@ export default function PurchasesPage() {
                     label="Conditional"
                     type="number"
                     min={0}
+                    step="any"
                     value={item.conditional}
                     onChange={(e) => updateItem(index, { conditional: Number(e.target.value) })}
                   />
@@ -451,6 +454,7 @@ export default function PurchasesPage() {
                     label="Rate / Carton"
                     type="number"
                     min={0}
+                    step="any"
                     value={item.rate_per_cotton}
                     onChange={(e) => updateItem(index, { rate_per_cotton: Number(e.target.value) })}
                   />
@@ -459,6 +463,7 @@ export default function PurchasesPage() {
                       label="Total Rate"
                       type="number"
                       min={0}
+                      step="any"
                       value={item.total_rate}
                       onChange={(e) => updateItem(index, { total_rate: Number(e.target.value) })}
                     />
@@ -503,6 +508,7 @@ export default function PurchasesPage() {
                     label="Amount"
                     type="number"
                     min={0}
+                    step="any"
                     value={form[`expense${n}_amount` as keyof typeof form] as number}
                     onChange={(e) =>
                       setForm({

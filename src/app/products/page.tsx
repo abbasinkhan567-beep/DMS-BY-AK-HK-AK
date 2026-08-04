@@ -218,6 +218,7 @@ export default function ProductsPage() {
               label="Purchase Price"
               type="number"
               min={0}
+              step="any"
               value={form.purchase_price}
               onChange={(e) => setForm({ ...form, purchase_price: Number(e.target.value) })}
             />
@@ -225,6 +226,7 @@ export default function ProductsPage() {
               label="Sale Price"
               type="number"
               min={0}
+              step="any"
               value={form.sale_price}
               onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })}
             />

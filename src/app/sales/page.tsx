@@ -487,6 +487,7 @@ export default function SalesPage() {
               label="Paid Amount"
               type="number"
               min={0}
+              step="any"
               value={form.paid_amount}
               onChange={(e) => setForm({ ...form, paid_amount: Number(e.target.value) })}
             />
@@ -494,6 +495,7 @@ export default function SalesPage() {
               label="Bill Balance Due"
               type="number"
               min={0}
+              step="any"
               value={bakayaEdited ? form.bill_bakaya : bakaya}
               onChange={(e) => {
                 setBakayaEdited(true);
@@ -548,6 +550,7 @@ export default function SalesPage() {
                       label="Rate"
                       type="number"
                       min={0}
+                      step="any"
                       value={item.unit_price}
                       onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
                     />
@@ -557,6 +560,7 @@ export default function SalesPage() {
                       label="Comm / unit"
                       type="number"
                       min={0}
+                      step="any"
                       value={item.commission_rate}
                       onChange={(e) =>
                         updateItem(index, { commission_rate: Number(e.target.value) })
@@ -570,6 +574,7 @@ export default function SalesPage() {
                         label="Disc / unit"
                         type="number"
                         min={0}
+                        step="any"
                         value={item.discount_rate}
                         onChange={(e) =>
                           updateItem(index, { discount_rate: Number(e.target.value) })
@@ -622,6 +627,7 @@ export default function SalesPage() {
                     label="Amount"
                     type="number"
                     min={0}
+                    step="any"
                     value={form[`expense${n}_amount` as keyof typeof form] as number}
                     onChange={(e) =>
                       setForm({

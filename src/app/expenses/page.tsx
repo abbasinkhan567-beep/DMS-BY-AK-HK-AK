@@ -268,6 +268,7 @@ export default function ExpensesPage() {
               label="Amount"
               type="number"
               min={0}
+              step="any"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
             />

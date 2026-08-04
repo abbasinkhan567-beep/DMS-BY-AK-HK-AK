@@ -1,6 +1,6 @@
 {
-  "version": "10.3.1",
+  "version": "10.3.2",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.1: Fixed GitHub remote handling for sync and updates so SSH/HTTPS remotes and token-based auth work reliably on office PCs.",
+  "notes": "v10.3.2: Fixed commission/conditional/hand rates error 'Please enter a valid value, nearest 1 and 2' - all money inputs now accept decimal values (step=any).",
   "updatedAt": "2026-08-04"
 }

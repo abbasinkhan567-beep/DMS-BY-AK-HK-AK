@@ -426,6 +426,7 @@ export default function GeneralEntryPage() {
             <Input
               label="Opening Balance"
               type="number"
+              step="any"
               value={accForm.opening_balance}
               onChange={(e) => setAccForm({ ...accForm, opening_balance: Number(e.target.value) })}
             />
@@ -483,6 +484,7 @@ export default function GeneralEntryPage() {
               label="Amount"
               type="number"
               min={0}
+              step="any"
               value={entryForm.amount}
               onChange={(e) => setEntryForm({ ...entryForm, amount: Number(e.target.value) })}
             />
