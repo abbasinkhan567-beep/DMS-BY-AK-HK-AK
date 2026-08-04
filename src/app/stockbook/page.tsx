@@ -255,7 +255,7 @@ export default function StockbookPage() {
     e.preventDefault();
     setError("");
     if (!cols.length) {
-      setError("Kam az kam ek product column add karein");
+      setError("Add at least one product column");
       return;
     }
     const items = cols.map((c) => ({
@@ -296,7 +296,7 @@ export default function StockbookPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm("Is din ka stockbook delete karein?")) return;
+    if (!confirm("Delete this day's stockbook?")) return;
     const res = await fetch(`/api/stockbook?id=${id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -359,7 +359,7 @@ export default function StockbookPage() {
     <div>
       <PageHeader
         title="Stockbook"
-        subtitle="Daily stock sheet — bill style"
+        subtitle="Daily stock sheet"
         action={
           <Button onClick={openCreate}>
             <Plus size={16} /> New Day
@@ -704,16 +704,13 @@ export default function StockbookPage() {
             >
               + Salesman Row
             </Button>
-            <p className="text-xs text-slate-500">
-              Closing = Floor + Company. Closing kal ka opening stock banega.
-            </p>
           </div>
 
           <TextArea
             label="Note"
             value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
-            placeholder="Aaj ka note — koi kami / zyada stock / special baat"
+            placeholder="Daily note"
           />
 
           {error && <p className="text-sm text-rose-500">{error}</p>}
