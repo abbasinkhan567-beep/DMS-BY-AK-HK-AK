@@ -10,6 +10,7 @@ type PurchaseBill = {
   paid_amount: number;
   notes?: string | null;
   items: Array<{
+    product_id?: number;
     product_name?: string | null;
     company_name?: string | null;
     size?: string | null;
@@ -44,6 +45,7 @@ type SaleBill = {
   total_discount?: number;
   total_bill_expense?: number;
   items: Array<{
+    product_id?: number;
     product_name?: string | null;
     size?: string | null;
     quantity: number;
@@ -78,38 +80,40 @@ export async function printPurchaseBill(id: number) {
   ]);
   const bill = billRes as PurchaseBill;
   const returns = (returnsRes || []) as Array<{
+    product_id?: number;
     product_name?: string;
     product_size?: string | null;
     qty: number;
     rate: number;
   }>;
+
+  const retByProduct = new Map<number, number>();
+  for (const r of returns) {
+    if (r.product_id) retByProduct.set(r.product_id, (retByProduct.get(r.product_id) || 0) + r.qty);
+  }
+  const returnTotal = returns.reduce((s, r) => s + r.qty * (r.rate || 0), 0);
+
   const rows = (bill.items || [])
-    .map(
-      (i) => `<tr>
+    .map((i) => {
+      const retQty = retByProduct.get(i.product_id ?? Number.NaN) || 0;
+      const netQty = Math.max(0, Number(i.quantity) - retQty);
+      const outTotal = Number(i.total_rate || i.total || 0);
+      const retAmt = retQty * (Number(i.rate_per_cotton) || 0);
+      const netTotal = Math.max(0, outTotal - retAmt);
+      return `<tr>
       <td>${escapeHtml(i.product_name || "-")}</td>
       <td>${escapeHtml(i.company_name || bill.company_name || bill.supplier)}</td>
       <td>${escapeHtml(i.size || "-")}</td>
       <td>${i.quantity}</td>
+      <td>${retQty || "-"}</td>
+      <td>${netQty}</td>
       <td>${i.hand_to_hand || 0}</td>
       <td>${i.conditional || 0}</td>
       <td>${formatMoney(i.rate_per_cotton || 0)}</td>
-      <td>${formatMoney(i.total_rate || i.total || 0)}</td>
-    </tr>`
-    )
+      <td>${formatMoney(netTotal)}</td>
+    </tr>`;
+    })
     .join("");
-
-  const returnRows = returns
-    .map(
-      (r) => `<tr>
-      <td>${escapeHtml(r.product_name || "-")}</td>
-      <td>${escapeHtml(r.product_size || "-")}</td>
-      <td>${r.qty}</td>
-      <td>${formatMoney(r.rate)}</td>
-      <td>${formatMoney(r.qty * r.rate)}</td>
-    </tr>`
-    )
-    .join("");
-  const returnTotal = returns.reduce((s, r) => s + r.qty * r.rate, 0);
 
   printHtml(
     `Purchase ${bill.invoice_no || bill.id}`,
@@ -121,22 +125,17 @@ export async function printPurchaseBill(id: number) {
      </div>
      <table>
        <thead><tr>
-         <th>Product</th><th>Company</th><th>Size</th><th>Qty</th><th>Hand to Hand</th><th>Conditional</th><th>Rate/Carton</th><th>Total</th>
+         <th>Product</th><th>Company</th><th>Size</th><th>Qty</th><th>Return</th><th>Net Qty</th><th>Hand to Hand</th><th>Conditional</th><th>Rate/Carton</th><th>Amount</th>
        </tr></thead>
        <tbody>${rows}</tbody>
      </table>
      <div class="totals">
+       <div><span>Return Amount</span><span>- ${formatMoney(returnTotal)}</span></div>
        <div><span>Total</span><span>${formatMoney(bill.total_amount)}</span></div>
        <div><span>Paid</span><span>${formatMoney(bill.paid_amount)}</span></div>
-       <div class="grand"><span>Balance</span><span>${formatMoney(bill.total_amount - bill.paid_amount)}</span></div>
-     </div>
-     ${returns.length ? `
-     <h3>Returns</h3>
-     <table>
-       <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
-       <tbody>${returnRows}</tbody>
-     </table>
-     <div class="totals"><div class="grand"><span>Total Returns</span><span>${formatMoney(returnTotal)}</span></div></div>` : ""}`
+       <div class="grand"><span>Net Bill Total</span><span>${formatMoney(Math.max(0, bill.total_amount - returnTotal))}</span></div>
+       <div class="grand"><span>Balance</span><span>${formatMoney(Math.max(0, bill.total_amount - returnTotal - bill.paid_amount))}</span></div>
+     </div>`
   );
 }
 
@@ -162,37 +161,37 @@ export async function printSaleBill(id: number) {
   ]);
   const bill = billRes as SaleBill;
   const returns = (returnsRes || []) as Array<{
+    product_id?: number;
     product_name?: string;
     product_size?: string | null;
     qty: number;
     rate: number;
   }>;
+
+  const retByProduct = new Map<number, number>();
+  for (const r of returns) {
+    if (r.product_id) retByProduct.set(r.product_id, (retByProduct.get(r.product_id) || 0) + r.qty);
+  }
+  const returnTotal = returns.reduce((s, r) => s + r.qty * (r.rate || 0), 0);
+
   const rows = (bill.items || [])
-    .map(
-      (i) => `<tr>
+    .map((i) => {
+      const retQty = retByProduct.get(i.product_id ?? (i as { id?: number }).id ?? Number.NaN) || 0;
+      const netQty = Math.max(0, Number(i.quantity) - retQty);
+      const outTotal = Number(i.total || i.quantity * i.unit_price - (i.discount || 0));
+      const retAmt = retQty * (i.unit_price || 0);
+      const netTotal = Math.max(0, outTotal - retAmt);
+      return `<tr>
       <td>${escapeHtml(i.product_name || "-")}</td>
       <td>${escapeHtml(i.size || (i as { linked_size?: string }).linked_size || "-")}</td>
       <td>${i.quantity}</td>
+      <td>${retQty || "-"}</td>
+      <td>${netQty}</td>
       <td>${formatMoney(i.unit_price)}</td>
-      <td>${formatMoney(i.commission || 0)}</td>
-      <td>${formatMoney(i.discount || 0)}</td>
-      <td>${formatMoney(i.total || i.quantity * i.unit_price - (i.discount || 0))}</td>
-    </tr>`
-    )
+      <td>${formatMoney(netTotal)}</td>
+    </tr>`;
+    })
     .join("");
-
-  const returnRows = returns
-    .map(
-      (r) => `<tr>
-      <td>${escapeHtml(r.product_name || "-")}</td>
-      <td>${escapeHtml(r.product_size || "-")}</td>
-      <td>${r.qty}</td>
-      <td>${formatMoney(r.rate)}</td>
-      <td>${formatMoney(r.qty * r.rate)}</td>
-    </tr>`
-    )
-    .join("");
-  const returnTotal = returns.reduce((s, r) => s + r.qty * r.rate, 0);
 
   printHtml(
     `Sale ${bill.invoice_no || bill.id}`,
@@ -204,11 +203,12 @@ export async function printSaleBill(id: number) {
      </div>
      <table>
        <thead><tr>
-         <th>Product</th><th>Size</th><th>Qty</th><th>Rate</th><th>Commission</th><th>Discount</th><th>Total</th>
+         <th>Product</th><th>Size</th><th>Qty</th><th>Return</th><th>Net Qty</th><th>Rate</th><th>Amount</th>
        </tr></thead>
        <tbody>${rows}</tbody>
      </table>
      <div class="totals">
+       <div><span>Return Amount</span><span>- ${formatMoney(returnTotal)}</span></div>
        <div><span>Total Commission</span><span>${formatMoney(bill.total_commission || 0)}</span></div>
        <div><span>Total Discount</span><span>${formatMoney(bill.total_discount || 0)}</span></div>
        <div><span>${escapeHtml(bill.expense1_label || "Expense 1")}</span><span>${formatMoney(bill.expense1_amount || 0)}</span></div>
@@ -218,15 +218,8 @@ export async function printSaleBill(id: number) {
        <div><span>Empty</span><span>${bill.empty_qty || 0}</span></div>
        <div><span>Paid</span><span>${formatMoney(bill.paid_amount)}</span></div>
        <div><span>Bill Balance Due</span><span>${formatMoney(bill.bill_bakaya || 0)}</span></div>
-       <div class="grand"><span>Bill Total</span><span>${formatMoney(bill.total_amount)}</span></div>
-     </div>
-     ${returns.length ? `
-     <h3>Returns</h3>
-     <table>
-       <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
-       <tbody>${returnRows}</tbody>
-     </table>
-     <div class="totals"><div class="grand"><span>Total Returns</span><span>${formatMoney(returnTotal)}</span></div></div>` : ""}`
+       <div class="grand"><span>Bill Total</span><span>${formatMoney(Math.max(0, bill.total_amount - returnTotal))}</span></div>
+     </div>`
   );
 }
 

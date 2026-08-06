@@ -1,6 +1,6 @@
 {
-  "version": "10.3.7",
+  "version": "10.3.8",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.7: Returned Goods now inside Add Sale / Add Purchase form (product + rate + qty); returns shown on printed sale and purchase bills; sale/purchase delete cleans up returns and stock.",
+  "notes": "v10.3.8: Returns merged into sale/purchase bills — print shows Qty, Return, Net Qty per product; Return Amount subtracted, Bill Total is net only.",
   "updatedAt": "2026-08-06"
 }
