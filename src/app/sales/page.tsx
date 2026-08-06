@@ -35,6 +35,7 @@ type Sale = {
   shop_name: string | null;
   salesman_name: string | null;
   item_count: number;
+  return_amount: number;
 };
 
 type LineItem = {
@@ -391,6 +392,7 @@ export default function SalesPage() {
                     "Customer",
                     "Salesman",
                     "Total",
+                    "Return",
                     "Commission",
                     "Discount",
                     "Expense",
@@ -421,6 +423,9 @@ export default function SalesPage() {
                       </td>
                       <td className="px-4 py-3.5 text-slate-600">{s.salesman_name || "-"}</td>
                       <td className="px-4 py-3.5 font-semibold">{formatMoney(s.total_amount)}</td>
+                      <td className="px-4 py-3.5 text-rose-600 font-medium">
+                        {Number(s.return_amount || 0) > 0 ? "- " + formatMoney(s.return_amount) : "-"}
+                      </td>
                       <td className="px-4 py-3.5 text-slate-600">
                         {formatMoney(s.total_commission || 0)}
                       </td>

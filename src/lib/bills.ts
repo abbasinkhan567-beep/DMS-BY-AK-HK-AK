@@ -51,6 +51,7 @@ type SaleBill = {
     quantity: number;
     unit_price: number;
     commission?: number;
+    commission_rate?: number;
     discount?: number;
     total?: number;
   }>;
@@ -174,30 +175,47 @@ export async function printSaleBill(id: number) {
     rate: number;
   }>;
 
-  const retByProduct = new Map<number, { qty: number; rate: number }>();
+  const retByProduct = new Map<number, { qty: number; totalRate: number }>();
   for (const r of returns) {
     if (r.product_id) {
-      const cur = retByProduct.get(r.product_id) || { qty: 0, rate: 0 };
+      const cur = retByProduct.get(r.product_id) || { qty: 0, totalRate: 0 };
       cur.qty += r.qty;
-      cur.rate += r.qty * (r.rate || 0);
+      cur.totalRate += r.qty * (r.rate || 0);
       retByProduct.set(r.product_id, cur);
     }
   }
   const returnTotal = returns.reduce((s, r) => s + r.qty * (r.rate || 0), 0);
 
+  const remaining = new Map<number, number>();
+  for (const [pid, agg] of retByProduct) remaining.set(pid, agg.qty);
+
+  let returnCommission = 0;
   const rows = (bill.items || [])
     .map((i) => {
-      const ret = retByProduct.get(i.product_id ?? (i as { id?: number }).id ?? Number.NaN);
-      const retQty = ret?.qty || 0;
-      const retAmt = ret?.rate || 0;
-      const netQty = Math.max(0, Number(i.quantity) - retQty);
+      const pid = i.product_id ?? (i as { id?: number }).id;
+      const agg = pid != null ? retByProduct.get(pid) : undefined;
+      const rem = pid != null ? remaining.get(pid) || 0 : 0;
+      const lineQty = Number(i.quantity) || 0;
+      const lineRetQty = agg ? Math.min(lineQty, rem) : 0;
+      if (pid != null) remaining.set(pid, rem - lineRetQty);
+      const perUnitRetRate = agg && agg.qty > 0 ? agg.totalRate / agg.qty : 0;
+      const lineRetAmt = lineRetQty * perUnitRetRate;
+      const netQty = Math.max(0, lineQty - lineRetQty);
       const outTotal = Number(i.total || i.quantity * i.unit_price - (i.discount || 0));
-      const netTotal = Math.max(0, outTotal - retAmt);
+      const netTotal = Math.max(0, outTotal - lineRetAmt);
+      if (lineRetQty > 0) {
+        const commRate = Number(i.commission_rate) || 0;
+        if (commRate > 0) {
+          returnCommission += commRate * lineRetQty;
+        } else if (Number(i.commission) > 0 && lineQty > 0) {
+          returnCommission += (Number(i.commission) / lineQty) * lineRetQty;
+        }
+      }
       return `<tr>
       <td>${escapeHtml(i.product_name || "-")}</td>
       <td>${escapeHtml(i.size || (i as { linked_size?: string }).linked_size || "-")}</td>
       <td>${i.quantity}</td>
-      <td>${retQty || "-"}</td>
+      <td>${lineRetQty || "-"}</td>
       <td>${netQty}</td>
       <td>${formatMoney(i.unit_price)}</td>
       <td>${formatMoney(netTotal)}</td>
@@ -220,8 +238,9 @@ export async function printSaleBill(id: number) {
        <tbody>${rows}</tbody>
      </table>
      <div class="totals">
-       <div><span>Return Amount</span><span>- ${formatMoney(returnTotal)}</span></div>
-       <div><span>Total Commission</span><span>${formatMoney(bill.total_commission || 0)}</span></div>
+<div><span>Return Amount</span><span>- ${formatMoney(returnTotal)}</span></div>
+        <div><span>Return Commission</span><span>- ${formatMoney(returnCommission)}</span></div>
+        <div><span>Total Commission</span><span>${formatMoney(Math.max(0, (bill.total_commission || 0) - returnCommission))}</span></div>
        <div><span>Total Discount</span><span>${formatMoney(bill.total_discount || 0)}</span></div>
        <div><span>${escapeHtml(bill.expense1_label || "Expense 1")}</span><span>${formatMoney(bill.expense1_amount || 0)}</span></div>
        <div><span>${escapeHtml(bill.expense2_label || "Expense 2")}</span><span>${formatMoney(bill.expense2_amount || 0)}</span></div>

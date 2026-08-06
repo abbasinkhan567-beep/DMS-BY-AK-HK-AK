@@ -1,7 +1,6 @@
 {
-  "version": "10.3.10",
-  "name": "Pepsi Distribution",
-  "notes": "v10.3.10: Add Sale/Add Purchase form totals now show Return Amount deduction - Bill Total (Net) = items - discount + expense - returns.",
-  "updatedAt": "2026-08-06"
+    "version":  "10.3.11",
+    "name":  "Pepsi Distribution",
+    "notes":  "v10.3.11: Sale bill print now subtracts returned goods\u0027 commission (Return Commission -X); Sales list shows Return amount per bill.",
+    "updatedAt":  "2026-08-06"
 }
-

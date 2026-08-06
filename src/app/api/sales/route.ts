@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
     .prepare(
       `SELECT s.*,
               c.name as customer_name, c.shop_name, sm.name as salesman_name,
-              (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id AND (si.deleted IS NULL OR si.deleted = 0)) as item_count
+              (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id AND (si.deleted IS NULL OR si.deleted = 0)) as item_count,
+              (SELECT COALESCE(SUM(sr.qty * sr.rate), 0) FROM sales_returns sr WHERE sr.sale_id = s.id AND (sr.deleted IS NULL OR sr.deleted = 0)) as return_amount
        FROM sales s
        JOIN customers c ON c.id = s.customer_id
        LEFT JOIN salesmen sm ON sm.id = s.salesman_id
