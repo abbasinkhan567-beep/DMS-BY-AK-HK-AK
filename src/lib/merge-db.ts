@@ -23,6 +23,7 @@ const MERGE_TABLES = [
   "sales", "sale_items", "expenses", "accounts", "general_entries",
   "stock_transfers", "stock_adjustments", "floors", "paper_days",
   "manual_ledger_entries", "stockbook", "stockbook_items", "stockbook_sales",
+  "sales_returns", "purchase_returns",
 ];
 
 export type MergeStats = {
@@ -236,6 +237,12 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
       updated += u;
     });
     added += mergeStockbook(local, remote, (u) => {
+      updated += u;
+    });
+    added += mergeReturns(local, remote, "sales_returns", "sale_id", "sales", (u) => {
+      updated += u;
+    });
+    added += mergeReturns(local, remote, "purchase_returns", "purchase_id", "purchases", (u) => {
       updated += u;
     });
     added += mergeSimpleTx(
@@ -860,6 +867,59 @@ function mergeStockbook(
         .prepare(`UPDATE stockbook SET book_date=?, note=?, updated_at=? WHERE id=?`)
         .run(row.book_date, row.note ?? null, row.updated_at, existing.id);
       insertItems(existing.id, Number(row.id));
+      updated++;
+    }
+  }
+  onUpdated(updated);
+  return added;
+}
+
+function mergeReturns(
+  local: PepsiDb,
+  remote: PepsiDb,
+  table: "sales_returns" | "purchase_returns",
+  parentCol: "sale_id" | "purchase_id",
+  parentTable: "sales" | "purchases",
+  onUpdated: (n: number) => void
+) {
+  let added = 0;
+  let updated = 0;
+  const rows = remote
+    .prepare(`SELECT * FROM ${table} WHERE (deleted IS NULL OR deleted = 0)`)
+    .all() as Array<Record<string, unknown>>;
+  for (const row of rows) {
+    const syncId = String(row.sync_id || "");
+    if (!syncId) continue;
+    const existing = local
+      .prepare(`SELECT id, deleted FROM ${table} WHERE sync_id = ?`)
+      .get(syncId) as { id: number; deleted: number } | undefined;
+    if (existing) continue;
+
+    const isDeleted = local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(syncId);
+    if (isDeleted) continue;
+
+    const parentId = remapFk(local, remote, parentTable, row[parentCol] as number);
+    const productId = remapFk(local, remote, "products", row.product_id as number);
+    if (!parentId || !productId) continue;
+
+    try {
+      local
+        .prepare(
+          `INSERT INTO ${table} (sync_id, updated_at, ${parentCol}, product_id, qty, return_date, notes, created_at)
+           VALUES (?,?,?,?,?,?,?,?)`
+        )
+        .run(
+          syncId,
+          row.updated_at || new Date().toISOString(),
+          parentId,
+          productId,
+          row.qty ?? 0,
+          row.return_date ?? null,
+          row.notes ?? null,
+          row.created_at ?? null
+        );
+      added++;
+    } catch {
       updated++;
     }
   }

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelPurchaseBill, printPurchaseBill } from "@/lib/bills";
 import {
@@ -84,6 +84,20 @@ export default function PurchasesPage() {
   });
   const [items, setItems] = useState<LineItem[]>([emptyLine()]);
   const [q, setQ] = useState("");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnPurchase, setReturnPurchase] = useState<Purchase | null>(null);
+  const [returnItems, setReturnItems] = useState<LineItem[]>([]);
+  const [returnList, setReturnList] = useState<
+    Array<{ id: number; product_id: number; product_name: string; product_size: string | null; qty: number; return_date: string; notes: string | null }>
+  >([]);
+  const [returnForm, setReturnForm] = useState({
+    product_id: 0,
+    qty: 0,
+    return_date: todayLocal(),
+    notes: "",
+  });
+  const [returnSaving, setReturnSaving] = useState(false);
+  const [returnError, setReturnError] = useState("");
 
   async function load() {
     const [pRes, prodRes] = await Promise.all([
@@ -253,6 +267,77 @@ export default function PurchasesPage() {
     await load();
   }
 
+  async function openReturn(purchase: Purchase) {
+    const [detail, returns] = await Promise.all([
+      fetch(`/api/purchases?id=${purchase.id}`).then((r) => r.json()),
+      fetch(`/api/purchase-returns?purchase_id=${purchase.id}`).then((r) => r.json()),
+    ]);
+    const items = (detail.items || []).map((i: LineItem & { product_size?: string }) => ({
+      product_id: i.product_id,
+      product_name: i.product_name || "",
+      quantity: Number(i.quantity) || 0,
+      company_name: i.company_name || "",
+      size: i.size || "",
+      hand_to_hand: Number(i.hand_to_hand) || 0,
+      conditional: Number(i.conditional) || 0,
+      rate_per_cotton: Number(i.rate_per_cotton) || 0,
+      total_rate: Number(i.total_rate) || 0,
+    }));
+    setReturnPurchase(purchase);
+    setReturnItems(items);
+    setReturnList(returns || []);
+    setReturnForm({ product_id: items.length ? items[0].product_id : 0, qty: 0, return_date: todayLocal(), notes: "" });
+    setReturnError("");
+    setReturnOpen(true);
+  }
+
+  function returnedQty(pid: number) {
+    return returnList.filter((r) => r.product_id === pid).reduce((s, r) => s + r.qty, 0);
+  }
+
+  function remainingReturn(pid: number) {
+    const bought = returnItems.find((i) => i.product_id === pid)?.quantity || 0;
+    return Math.max(0, bought - returnedQty(pid));
+  }
+
+  async function saveReturn() {
+    setReturnError("");
+    if (!returnPurchase || !returnForm.product_id || Number(returnForm.qty) <= 0) {
+      setReturnError("Product aur qty select karein");
+      return;
+    }
+    if (Number(returnForm.qty) > remainingReturn(returnForm.product_id)) {
+      setReturnError(`Sirf ${remainingReturn(returnForm.product_id)} unit return kar sakte hain`);
+      return;
+    }
+    setReturnSaving(true);
+    try {
+      const res = await fetch("/api/purchase-returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...returnForm, purchase_id: returnPurchase.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setReturnForm({ ...returnForm, qty: 0 });
+      setReturnList([...(await fetch(`/api/purchase-returns?purchase_id=${returnPurchase.id}`).then((r) => r.json()))]);
+      await load();
+    } catch (err) {
+      setReturnError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setReturnSaving(false);
+    }
+  }
+
+  async function deleteReturn(id: number) {
+    if (!returnPurchase) return;
+    if (!confirm("Is return ko delete karein? Stock wapis barh jayega.")) return;
+    const res = await fetch(`/api/purchase-returns?id=${id}`, { method: "DELETE" });
+    if (!res.ok) return;
+    setReturnList((await fetch(`/api/purchase-returns?purchase_id=${returnPurchase.id}`).then((r) => r.json())));
+    await load();
+  }
+
   const filtered = purchases.filter((p) =>
     matchSearch(
       `${p.supplier} ${p.company_name || ""} ${p.invoice_no || ""}`,
@@ -330,6 +415,14 @@ export default function PurchasesPage() {
                           title="Excel"
                         >
                           <FileSpreadsheet size={15} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="!px-2 !py-1.5 text-amber-600"
+                          onClick={() => openReturn(p)}
+                          title="Return goods"
+                        >
+                          <RotateCcw size={15} />
                         </Button>
                         <Button
                           variant="ghost"
@@ -542,6 +635,90 @@ export default function PurchasesPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={returnOpen}
+        onClose={() => setReturnOpen(false)}
+        title={`Return Goods — ${returnPurchase?.company_name || returnPurchase?.supplier || ""}`}
+      >
+        <div className="space-y-4">
+          {returnList.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Previous Returns
+              </p>
+              {returnList.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                >
+                  <span>
+                    {r.product_name} {r.product_size ? `(${r.product_size})` : ""} · {r.qty} ·{" "}
+                    {formatDate(r.return_date)}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-rose-500 hover:text-rose-700"
+                    onClick={() => deleteReturn(r.id)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Select
+              label="Product"
+              value={returnForm.product_id || ""}
+              onChange={(e) => setReturnForm({ ...returnForm, product_id: Number(e.target.value) })}
+            >
+              {returnItems.map((i) => (
+                <option key={i.product_id} value={i.product_id}>
+                  {i.product_name} (bought: {i.quantity}, returned: {returnedQty(i.product_id)})
+                </option>
+              ))}
+            </Select>
+            <Input
+              label="Return Qty"
+              type="number"
+              min={0}
+              step="any"
+              value={returnForm.qty}
+              onChange={(e) => setReturnForm({ ...returnForm, qty: Number(e.target.value) })}
+            />
+            <Input
+              label="Return Date"
+              type="date"
+              value={returnForm.return_date}
+              onChange={(e) => setReturnForm({ ...returnForm, return_date: e.target.value })}
+            />
+            <Input
+              label="Notes"
+              value={returnForm.notes}
+              onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })}
+            />
+          </div>
+
+          {returnForm.product_id && remainingReturn(returnForm.product_id) > 0 && (
+            <p className="text-xs text-slate-500">
+              {remainingReturn(returnForm.product_id)} units can still be returned for this product.
+            </p>
+          )}
+
+          {returnError && <p className="text-sm text-rose-500">{returnError}</p>}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={() => setReturnOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveReturn} disabled={returnSaving}>
+              {returnSaving ? "Saving..." : "Save Return"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

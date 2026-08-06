@@ -1,6 +1,6 @@
 {
-  "version": "10.3.4",
+  "version": "10.3.5",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.4: Stockbook Floor Stock auto-calculates (Opening - Total Sale); prints now show product size/ML (stockbook, sale bill + excel); clean professional labels.",
-  "updatedAt": "2026-08-04"
+  "notes": "v10.3.5: Sales & Purchase Return system — return goods on any sale/purchase bill; stock adjusts automatically; over-limit returns blocked.",
+  "updatedAt": "2026-08-06"
 }

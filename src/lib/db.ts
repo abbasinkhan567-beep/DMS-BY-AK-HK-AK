@@ -266,6 +266,26 @@ function ensureSchema(db: PepsiDb) {
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS sales_returns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id),
+      qty REAL NOT NULL DEFAULT 0,
+      return_date TEXT NOT NULL DEFAULT (date('now','localtime')),
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS purchase_returns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_id INTEGER NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id),
+      qty REAL NOT NULL DEFAULT 0,
+      return_date TEXT NOT NULL DEFAULT (date('now','localtime')),
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS deleted_records (
       sync_id TEXT PRIMARY KEY,
       deleted_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
@@ -353,6 +373,12 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "stockbook_sales", "sync_id", "TEXT");
   addColumn(db, "stockbook_sales", "updated_at", "TEXT");
   addColumn(db, "stockbook_sales", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "sales_returns", "sync_id", "TEXT");
+  addColumn(db, "sales_returns", "updated_at", "TEXT");
+  addColumn(db, "sales_returns", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "purchase_returns", "sync_id", "TEXT");
+  addColumn(db, "purchase_returns", "updated_at", "TEXT");
+  addColumn(db, "purchase_returns", "deleted", "INTEGER NOT NULL DEFAULT 0");
   ensureManualLedgerSchema(db);
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();

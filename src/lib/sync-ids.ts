@@ -20,6 +20,8 @@ const SYNC_TABLES = [
   "stockbook",
   "stockbook_items",
   "stockbook_sales",
+  "sales_returns",
+  "purchase_returns",
   "company_info",
 ] as const;
 
@@ -240,6 +242,44 @@ function backfillSyncIds(db: PepsiDb) {
     for (const r of rows) {
       upd.run(
         stableSyncId(["sbooksale", r.parent_sync || String(r.id), String(r.salesman_id), String(r.product_id), String(r.qty), String(r.id)]),
+        r.id
+      );
+    }
+  }
+
+  if (tableExists(db, "sales_returns")) {
+    const rows = db
+      .prepare(
+        `SELECT sr.id, s.invoice_no as parent_ref, s.id as s_id, sr.product_id, sr.qty
+         FROM sales_returns sr JOIN sales s ON s.id = sr.sale_id
+         WHERE sr.sync_id IS NULL OR sr.sync_id = ''`
+      )
+      .all() as Array<{ id: number; parent_ref: string | null; s_id: number; product_id: number; qty: number }>;
+    const upd = db.prepare(
+      `UPDATE sales_returns SET sync_id = ?, updated_at = COALESCE(updated_at, datetime('now','localtime')) WHERE id = ?`
+    );
+    for (const r of rows) {
+      upd.run(
+        stableSyncId(["sereturn", r.parent_ref || String(r.s_id), String(r.product_id), String(r.qty), String(r.id)]),
+        r.id
+      );
+    }
+  }
+
+  if (tableExists(db, "purchase_returns")) {
+    const rows = db
+      .prepare(
+        `SELECT pr.id, p.invoice_no as parent_ref, p.id as p_id, pr.product_id, pr.qty
+         FROM purchase_returns pr JOIN purchases p ON p.id = pr.purchase_id
+         WHERE pr.sync_id IS NULL OR pr.sync_id = ''`
+      )
+      .all() as Array<{ id: number; invoice_no: string | null; parent_ref: string | null; p_id: number; product_id: number; qty: number }>;
+    const upd = db.prepare(
+      `UPDATE purchase_returns SET sync_id = ?, updated_at = COALESCE(updated_at, datetime('now','localtime')) WHERE id = ?`
+    );
+    for (const r of rows) {
+      upd.run(
+        stableSyncId(["preturn", r.parent_ref || String(r.p_id), String(r.product_id), String(r.qty), String(r.id)]),
         r.id
       );
     }

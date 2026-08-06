@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelSaleBill, printSaleBill } from "@/lib/bills";
 import {
@@ -69,6 +69,20 @@ export default function SalesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [historical, setHistorical] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnSale, setReturnSale] = useState<Sale | null>(null);
+  const [returnItems, setReturnItems] = useState<LineItem[]>([]);
+  const [returnList, setReturnList] = useState<
+    Array<{ id: number; product_id: number; product_name: string; product_size: string | null; qty: number; return_date: string; notes: string | null }>
+  >([]);
+  const [returnForm, setReturnForm] = useState({
+    product_id: 0,
+    qty: 0,
+    return_date: todayLocal(),
+    notes: "",
+  });
+  const [returnSaving, setReturnSaving] = useState(false);
+  const [returnError, setReturnError] = useState("");
   const [form, setForm] = useState({
     invoice_no: "",
     customer_id: 0,
@@ -294,6 +308,76 @@ export default function SalesPage() {
     await load();
   }
 
+  async function openReturn(sale: Sale) {
+    const [detail, returns] = await Promise.all([
+      fetch(`/api/sales?id=${sale.id}`).then((r) => r.json()),
+      fetch(`/api/sales-returns?sale_id=${sale.id}`).then((r) => r.json()),
+    ]);
+    const items = (detail.items || []).map((i: LineItem & { linked_name?: string; product_size?: string }) => ({
+      product_id: i.product_id,
+      product_name: i.product_name || i.linked_name || "",
+      quantity: Number(i.quantity) || 0,
+      unit_price: Number(i.unit_price) || 0,
+      commission_rate: Number(i.commission_rate) || 0,
+      discount_rate: Number(i.discount_rate) || 0,
+      commission: Number(i.commission) || 0,
+      discount: Number(i.discount) || 0,
+    }));
+    setReturnSale(sale);
+    setReturnItems(items);
+    setReturnList(returns || []);
+    setReturnForm({ product_id: items.length ? items[0].product_id : 0, qty: 0, return_date: todayLocal(), notes: "" });
+    setReturnError("");
+    setReturnOpen(true);
+  }
+
+  function returnedQty(pid: number) {
+    return returnList.filter((r) => r.product_id === pid).reduce((s, r) => s + r.qty, 0);
+  }
+
+  function remainingReturn(pid: number) {
+    const sold = returnItems.find((i) => i.product_id === pid)?.quantity || 0;
+    return Math.max(0, sold - returnedQty(pid));
+  }
+
+  async function saveReturn() {
+    setReturnError("");
+    if (!returnSale || !returnForm.product_id || Number(returnForm.qty) <= 0) {
+      setReturnError("Product aur qty select karein");
+      return;
+    }
+    if (Number(returnForm.qty) > remainingReturn(returnForm.product_id)) {
+      setReturnError(`Sirf ${remainingReturn(returnForm.product_id)} unit return kar sakte hain`);
+      return;
+    }
+    setReturnSaving(true);
+    try {
+      const res = await fetch("/api/sales-returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...returnForm, sale_id: returnSale.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setReturnForm({ ...returnForm, qty: 0 });
+      setReturnList([...(await fetch(`/api/sales-returns?sale_id=${returnSale.id}`).then((r) => r.json()))]);
+      await load();
+    } catch (err) {
+      setReturnError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setReturnSaving(false);
+    }
+  }
+
+  async function deleteReturn(id: number) {
+    if (!returnSale) return;
+    if (!confirm("Is return ko delete karein? Stock wapis kam ho jayega.")) return;
+    const res = await fetch(`/api/sales-returns?id=${id}`, { method: "DELETE" });
+    if (!res.ok) return;
+    setReturnList((await fetch(`/api/sales-returns?sale_id=${returnSale.id}`).then((r) => r.json())));
+    await load();
+  }
+
   const filtered = sales.filter((s) =>
     matchSearch(
       `${s.customer_name} ${s.shop_name || ""} ${s.salesman_name || ""} ${s.invoice_no || ""}`,
@@ -401,6 +485,14 @@ export default function SalesPage() {
                             title="Excel"
                           >
                             <FileSpreadsheet size={15} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="!px-2 !py-1.5 text-amber-600"
+                            onClick={() => openReturn(s)}
+                            title="Return goods"
+                          >
+                            <RotateCcw size={15} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -685,6 +777,90 @@ export default function SalesPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={returnOpen}
+        onClose={() => setReturnOpen(false)}
+        title={`Return Goods — ${returnSale?.shop_name || returnSale?.customer_name || ""}`}
+      >
+        <div className="space-y-4">
+          {returnList.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Previous Returns
+              </p>
+              {returnList.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                >
+                  <span>
+                    {r.product_name} {r.product_size ? `(${r.product_size})` : ""} · {r.qty} ·{" "}
+                    {formatDate(r.return_date)}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-rose-500 hover:text-rose-700"
+                    onClick={() => deleteReturn(r.id)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Select
+              label="Product"
+              value={returnForm.product_id || ""}
+              onChange={(e) => setReturnForm({ ...returnForm, product_id: Number(e.target.value) })}
+            >
+              {returnItems.map((i) => (
+                <option key={i.product_id} value={i.product_id}>
+                  {i.product_name} (sold: {i.quantity}, returned: {returnedQty(i.product_id)})
+                </option>
+              ))}
+            </Select>
+            <Input
+              label="Return Qty"
+              type="number"
+              min={0}
+              step="any"
+              value={returnForm.qty}
+              onChange={(e) => setReturnForm({ ...returnForm, qty: Number(e.target.value) })}
+            />
+            <Input
+              label="Return Date"
+              type="date"
+              value={returnForm.return_date}
+              onChange={(e) => setReturnForm({ ...returnForm, return_date: e.target.value })}
+            />
+            <Input
+              label="Notes"
+              value={returnForm.notes}
+              onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })}
+            />
+          </div>
+
+          {returnForm.product_id && remainingReturn(returnForm.product_id) > 0 && (
+            <p className="text-xs text-slate-500">
+              {remainingReturn(returnForm.product_id)} units can still be returned for this product.
+            </p>
+          )}
+
+          {returnError && <p className="text-sm text-rose-500">{returnError}</p>}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={() => setReturnOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveReturn} disabled={returnSaving}>
+              {returnSaving ? "Saving..." : "Save Return"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
