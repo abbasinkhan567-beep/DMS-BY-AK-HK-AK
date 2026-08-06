@@ -429,6 +429,23 @@ export async function DELETE(req: NextRequest) {
         }
       }
 
+      const returns = db
+        .prepare("SELECT sync_id, product_id, qty FROM purchase_returns WHERE purchase_id = ? AND (deleted IS NULL OR deleted = 0)")
+        .all(id) as Array<{ sync_id: string | null; product_id: number; qty: number }>;
+      if (!purchase.is_historical) {
+        for (const ret of returns) {
+          db.prepare(
+            "UPDATE products SET stock = COALESCE(stock, 0) + ? WHERE id = ?"
+          ).run(ret.qty, ret.product_id);
+        }
+      }
+      for (const ret of returns) {
+        if (ret.sync_id) {
+          db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(ret.sync_id);
+        }
+        db.prepare("UPDATE purchase_returns SET deleted = 1 WHERE purchase_id = ? AND product_id = ?").run(id, ret.product_id);
+      }
+
       const ref = purchase.invoice_no || `#${id}`;
       reverseGeneralEntries(db, ref);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source IN (?, ?)").run(ref, "Purchase", "Purchase Expense");

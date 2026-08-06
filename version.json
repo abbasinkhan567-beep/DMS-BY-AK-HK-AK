@@ -1,6 +1,6 @@
 {
-  "version": "10.3.6",
+  "version": "10.3.7",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.6: Return now works like a bill — add multiple products with rate and qty on Return Goods form; total amount shown; per-product remaining limit enforced.",
+  "notes": "v10.3.7: Returned Goods now inside Add Sale / Add Purchase form (product + rate + qty); returns shown on printed sale and purchase bills; sale/purchase delete cleans up returns and stock.",
   "updatedAt": "2026-08-06"
 }

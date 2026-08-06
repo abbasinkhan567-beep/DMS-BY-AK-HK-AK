@@ -71,11 +71,18 @@ export async function fetchCompany(): Promise<Company> {
 }
 
 export async function printPurchaseBill(id: number) {
-  const [billRes, company] = await Promise.all([
+  const [billRes, company, returnsRes] = await Promise.all([
     fetch(`/api/purchases?id=${id}`).then((r) => r.json()),
     fetchCompany(),
+    fetch(`/api/purchase-returns?purchase_id=${id}`).then((r) => r.json()),
   ]);
   const bill = billRes as PurchaseBill;
+  const returns = (returnsRes || []) as Array<{
+    product_name?: string;
+    product_size?: string | null;
+    qty: number;
+    rate: number;
+  }>;
   const rows = (bill.items || [])
     .map(
       (i) => `<tr>
@@ -90,6 +97,19 @@ export async function printPurchaseBill(id: number) {
     </tr>`
     )
     .join("");
+
+  const returnRows = returns
+    .map(
+      (r) => `<tr>
+      <td>${escapeHtml(r.product_name || "-")}</td>
+      <td>${escapeHtml(r.product_size || "-")}</td>
+      <td>${r.qty}</td>
+      <td>${formatMoney(r.rate)}</td>
+      <td>${formatMoney(r.qty * r.rate)}</td>
+    </tr>`
+    )
+    .join("");
+  const returnTotal = returns.reduce((s, r) => s + r.qty * r.rate, 0);
 
   printHtml(
     `Purchase ${bill.invoice_no || bill.id}`,
@@ -109,7 +129,14 @@ export async function printPurchaseBill(id: number) {
        <div><span>Total</span><span>${formatMoney(bill.total_amount)}</span></div>
        <div><span>Paid</span><span>${formatMoney(bill.paid_amount)}</span></div>
        <div class="grand"><span>Balance</span><span>${formatMoney(bill.total_amount - bill.paid_amount)}</span></div>
-     </div>`
+     </div>
+     ${returns.length ? `
+     <h3>Returns</h3>
+     <table>
+       <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+       <tbody>${returnRows}</tbody>
+     </table>
+     <div class="totals"><div class="grand"><span>Total Returns</span><span>${formatMoney(returnTotal)}</span></div></div>` : ""}`
   );
 }
 
@@ -128,11 +155,18 @@ export async function excelPurchaseBill(id: number) {
 }
 
 export async function printSaleBill(id: number) {
-  const [billRes, company] = await Promise.all([
+  const [billRes, company, returnsRes] = await Promise.all([
     fetch(`/api/sales?id=${id}`).then((r) => r.json()),
     fetchCompany(),
+    fetch(`/api/sales-returns?sale_id=${id}`).then((r) => r.json()),
   ]);
   const bill = billRes as SaleBill;
+  const returns = (returnsRes || []) as Array<{
+    product_name?: string;
+    product_size?: string | null;
+    qty: number;
+    rate: number;
+  }>;
   const rows = (bill.items || [])
     .map(
       (i) => `<tr>
@@ -146,6 +180,19 @@ export async function printSaleBill(id: number) {
     </tr>`
     )
     .join("");
+
+  const returnRows = returns
+    .map(
+      (r) => `<tr>
+      <td>${escapeHtml(r.product_name || "-")}</td>
+      <td>${escapeHtml(r.product_size || "-")}</td>
+      <td>${r.qty}</td>
+      <td>${formatMoney(r.rate)}</td>
+      <td>${formatMoney(r.qty * r.rate)}</td>
+    </tr>`
+    )
+    .join("");
+  const returnTotal = returns.reduce((s, r) => s + r.qty * r.rate, 0);
 
   printHtml(
     `Sale ${bill.invoice_no || bill.id}`,
@@ -172,7 +219,14 @@ export async function printSaleBill(id: number) {
        <div><span>Paid</span><span>${formatMoney(bill.paid_amount)}</span></div>
        <div><span>Bill Balance Due</span><span>${formatMoney(bill.bill_bakaya || 0)}</span></div>
        <div class="grand"><span>Bill Total</span><span>${formatMoney(bill.total_amount)}</span></div>
-     </div>`
+     </div>
+     ${returns.length ? `
+     <h3>Returns</h3>
+     <table>
+       <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+       <tbody>${returnRows}</tbody>
+     </table>
+     <div class="totals"><div class="grand"><span>Total Returns</span><span>${formatMoney(returnTotal)}</span></div></div>` : ""}`
   );
 }
 

@@ -543,6 +543,21 @@ export async function DELETE(req: NextRequest) {
       reverseGeneralEntries(db, ref);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(ref, "Sale");
 
+      const returns = db
+        .prepare("SELECT sync_id, product_id, qty FROM sales_returns WHERE sale_id = ? AND (deleted IS NULL OR deleted = 0)")
+        .all(id) as Array<{ sync_id: string | null; product_id: number; qty: number }>;
+      if (!sale.is_historical) {
+        for (const ret of returns) {
+          db.prepare("UPDATE products SET stock = MAX(0, COALESCE(stock, 0) - ?) WHERE id = ?").run(ret.qty, ret.product_id);
+        }
+      }
+      for (const ret of returns) {
+        if (ret.sync_id) {
+          db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(ret.sync_id);
+        }
+        db.prepare("UPDATE sales_returns SET deleted = 1 WHERE sale_id = ? AND product_id = ?").run(id, ret.product_id);
+      }
+
       const syncId = (db.prepare("SELECT sync_id FROM sales WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
       if (syncId) {
         db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(syncId);

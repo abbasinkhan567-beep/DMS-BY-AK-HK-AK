@@ -101,6 +101,7 @@ export default function SalesPage() {
     notes: "",
   });
   const [items, setItems] = useState<LineItem[]>([emptyLine()]);
+  const [formReturns, setFormReturns] = useState<Array<{ product_id: number; qty: number; rate: number }>>([]);
   const [q, setQ] = useState("");
   const [bakayaEdited, setBakayaEdited] = useState(false);
 
@@ -193,6 +194,7 @@ export default function SalesPage() {
       notes: "",
     });
     setItems([emptyLine()]);
+    setFormReturns([]);
     setOpen(true);
   }
 
@@ -234,6 +236,18 @@ export default function SalesPage() {
         })
       )
     );
+    const returns = (await fetch(`/api/sales-returns?sale_id=${id}`).then((r) => r.json())) as Array<{
+      product_id: number;
+      qty: number;
+      rate: number;
+    }>;
+    setFormReturns(
+      (returns || []).map((r) => ({
+        product_id: r.product_id,
+        qty: Number(r.qty) || 0,
+        rate: Number(r.rate) || 0,
+      }))
+    );
     setOpen(true);
   }
 
@@ -257,6 +271,42 @@ export default function SalesPage() {
         return next;
       })
     );
+  }
+
+  async function syncReturns(saleId: number) {
+    const desired = formReturns.filter((l) => l.product_id && Number(l.qty) > 0);
+    const existing = (await fetch(`/api/sales-returns?sale_id=${saleId}`).then((r) => r.json())) as Array<{
+      id: number;
+      product_id: number;
+      qty: number;
+      rate: number;
+    }>;
+    const matched = (l: { product_id: number; qty: number; rate: number }) =>
+      existing.some(
+        (e) =>
+          e.product_id === l.product_id &&
+          Number(e.qty) === Number(l.qty) &&
+          Number(e.rate || 0) === Number(l.rate || 0)
+      );
+    for (const e of existing) {
+      const stillThere = desired.some(
+        (l) =>
+          l.product_id === e.product_id &&
+          Number(l.qty) === Number(e.qty) &&
+          Number(l.rate || 0) === Number(e.rate || 0)
+      );
+      if (!stillThere) {
+        await fetch(`/api/sales-returns?id=${e.id}`, { method: "DELETE" });
+      }
+    }
+    const toAdd = desired.filter((l) => !matched(l));
+    if (toAdd.length) {
+      await fetch("/api/sales-returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sale_id: saleId, items: toAdd, return_date: todayLocal() }),
+      });
+    }
   }
 
   async function save(e: FormEvent) {
@@ -287,6 +337,7 @@ export default function SalesPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
+      await syncReturns(data.id || editingId);
       setOpen(false);
       await load();
     } catch (err) {
@@ -730,6 +781,95 @@ export default function SalesPage() {
                     Discount:{" "}
                     <strong className="text-amber-600">{formatMoney(item.discount)}</strong>
                   </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Returned Goods (Optional)
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                className="!py-1.5 !text-xs"
+                onClick={() => setFormReturns([...formReturns, { product_id: 0, qty: 0, rate: 0 }])}
+              >
+                + Add Return
+              </Button>
+            </div>
+            {formReturns.map((r, index) => (
+              <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
+                <div className="grid gap-2 sm:grid-cols-12">
+                  <div className="sm:col-span-4">
+                    <Select
+                      label="Product"
+                      value={r.product_id || ""}
+                      onChange={(e) => {
+                        const pid = Number(e.target.value);
+                        const item = items.find((i) => i.product_id === pid);
+                        setFormReturns((prev) =>
+                          prev.map((x, i) =>
+                            i === index ? { ...x, product_id: pid, rate: item?.unit_price || 0 } : x
+                          )
+                        );
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {items
+                        .filter((i) => i.product_id)
+                        .map((i) => (
+                          <option key={i.product_id} value={i.product_id}>
+                            {i.product_name} (sold: {i.quantity})
+                          </option>
+                        ))}
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-3">
+                    <Input
+                      label="Rate"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={r.rate}
+                      onChange={(e) =>
+                        setFormReturns((prev) =>
+                          prev.map((x, i) => (i === index ? { ...x, rate: Number(e.target.value) } : x))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <Input
+                      label="Return Qty"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={r.qty}
+                      onChange={(e) =>
+                        setFormReturns((prev) =>
+                          prev.map((x, i) => (i === index ? { ...x, qty: Number(e.target.value) } : x))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <div className="flex items-end gap-1">
+                      <span className="pb-2.5 text-sm text-slate-600">
+                        {formatMoney((Number(r.qty) || 0) * (Number(r.rate) || 0))}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="!px-2 text-rose-500"
+                        onClick={() => setFormReturns(formReturns.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
