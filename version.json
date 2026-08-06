@@ -1,6 +1,6 @@
 {
-  "version": "10.3.8",
+  "version": "10.3.9",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.8: Returns merged into sale/purchase bills — print shows Qty, Return, Net Qty per product; Return Amount subtracted, Bill Total is net only.",
+  "notes": "v10.3.9: Bug fixes - stock movement now includes returns; edit/delete sale & purchase sync safe; invoice change reverses old entries; bill print uses return rates; merge tolerant of missing tables.",
   "updatedAt": "2026-08-06"
 }

@@ -9,13 +9,15 @@ export async function GET(req: NextRequest) {
   const id = new URL(req.url).searchParams.get("id");
 
   if (id) {
-    const purchase = db.prepare("SELECT * FROM purchases WHERE id = ?").get(id);
+    const purchase = db
+      .prepare("SELECT * FROM purchases WHERE id = ? AND (deleted IS NULL OR deleted = 0)")
+      .get(id);
     if (!purchase) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const items = db
       .prepare(
         `SELECT pi.*, p.name as linked_name, p.size as linked_size
          FROM purchase_items pi LEFT JOIN products p ON p.id = pi.product_id
-         WHERE pi.purchase_id = ?`
+         WHERE pi.purchase_id = ? AND (pi.deleted IS NULL OR pi.deleted = 0)`
       )
       .all(id);
     return NextResponse.json({ ...purchase, items });
@@ -24,7 +26,7 @@ export async function GET(req: NextRequest) {
   const purchases = db
     .prepare(
       `SELECT p.*,
-        (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) as item_count
+        (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id AND (pi.deleted IS NULL OR pi.deleted = 0)) as item_count
        FROM purchases p WHERE (p.deleted IS NULL OR p.deleted = 0) ORDER BY p.id DESC`
     )
     .all();
@@ -266,14 +268,15 @@ export async function PUT(req: NextRequest) {
 
   try {
     const tx = db.transaction(() => {
-      const old = db.prepare("SELECT is_historical FROM purchases WHERE id = ?").get(id) as
-        | { is_historical: number }
+      const old = db.prepare("SELECT is_historical, invoice_no FROM purchases WHERE id = ?").get(id) as
+        | { is_historical: number; invoice_no: string | null }
         | undefined;
       if (!old) throw new Error("Purchase not found");
+      const oldRef = old.invoice_no || `#${id}`;
 
       const oldItems = db
-        .prepare("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = ?")
-        .all(id) as Array<{ product_id: number; quantity: number }>;
+        .prepare("SELECT product_id, quantity, sync_id FROM purchase_items WHERE purchase_id = ?")
+        .all(id) as Array<{ product_id: number; quantity: number; sync_id: string | null }>;
       if (!old.is_historical) {
         for (const item of oldItems) {
           db.prepare(
@@ -281,7 +284,12 @@ export async function PUT(req: NextRequest) {
           ).run(item.quantity, item.quantity, item.product_id);
         }
       }
-      db.prepare("DELETE FROM purchase_items WHERE purchase_id = ?").run(id);
+      for (const item of oldItems) {
+        if (item.sync_id) {
+          db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(item.sync_id);
+        }
+      }
+      db.prepare("UPDATE purchase_items SET deleted = 1 WHERE purchase_id = ?").run(id);
 
       const total_amount = items.reduce(
         (sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate,
@@ -290,7 +298,8 @@ export async function PUT(req: NextRequest) {
 
       db.prepare(
         `UPDATE purchases SET invoice_no=?, supplier=?, company_name=?, purchase_date=?, total_amount=?, paid_amount=?, notes=?,
-         expense1_label=?, expense1_amount=?, expense2_label=?, expense2_amount=?, expense3_label=?, expense3_amount=?, total_expense=?
+         expense1_label=?, expense1_amount=?, expense2_label=?, expense2_amount=?, expense3_label=?, expense3_amount=?, total_expense=?,
+         is_historical=?
          WHERE id=?`
       ).run(
         invoice_no || null,
@@ -307,6 +316,7 @@ export async function PUT(req: NextRequest) {
         expense3_label || null,
         expense3_amount || 0,
         total_expense,
+        isHistorical ? 1 : 0,
         id
       );
 
@@ -343,7 +353,6 @@ export async function PUT(req: NextRequest) {
         }
       }
 
-      const oldRef = invoice_no || `#${id}`;
       reverseGeneralEntries(db, oldRef);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source IN (?, ?)").run(oldRef, "Purchase", "Purchase Expense");
 
@@ -419,7 +428,7 @@ export async function DELETE(req: NextRequest) {
       if (!purchase) throw new Error("Purchase not found");
 
       const items = db
-        .prepare("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = ?")
+        .prepare("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = ? AND (deleted IS NULL OR deleted = 0)")
         .all(id) as Array<{ product_id: number; quantity: number }>;
       if (!purchase.is_historical) {
         for (const item of items) {

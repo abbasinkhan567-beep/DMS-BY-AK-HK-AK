@@ -87,18 +87,24 @@ export async function printPurchaseBill(id: number) {
     rate: number;
   }>;
 
-  const retByProduct = new Map<number, number>();
+  const retByProduct = new Map<number, { qty: number; rate: number }>();
   for (const r of returns) {
-    if (r.product_id) retByProduct.set(r.product_id, (retByProduct.get(r.product_id) || 0) + r.qty);
+    if (r.product_id) {
+      const cur = retByProduct.get(r.product_id) || { qty: 0, rate: 0 };
+      cur.qty += r.qty;
+      cur.rate += r.qty * (r.rate || 0);
+      retByProduct.set(r.product_id, cur);
+    }
   }
   const returnTotal = returns.reduce((s, r) => s + r.qty * (r.rate || 0), 0);
 
   const rows = (bill.items || [])
     .map((i) => {
-      const retQty = retByProduct.get(i.product_id ?? Number.NaN) || 0;
+      const ret = retByProduct.get(i.product_id ?? Number.NaN);
+      const retQty = ret?.qty || 0;
+      const retAmt = ret?.rate || 0;
       const netQty = Math.max(0, Number(i.quantity) - retQty);
       const outTotal = Number(i.total_rate || i.total || 0);
-      const retAmt = retQty * (Number(i.rate_per_cotton) || 0);
       const netTotal = Math.max(0, outTotal - retAmt);
       return `<tr>
       <td>${escapeHtml(i.product_name || "-")}</td>
@@ -168,18 +174,24 @@ export async function printSaleBill(id: number) {
     rate: number;
   }>;
 
-  const retByProduct = new Map<number, number>();
+  const retByProduct = new Map<number, { qty: number; rate: number }>();
   for (const r of returns) {
-    if (r.product_id) retByProduct.set(r.product_id, (retByProduct.get(r.product_id) || 0) + r.qty);
+    if (r.product_id) {
+      const cur = retByProduct.get(r.product_id) || { qty: 0, rate: 0 };
+      cur.qty += r.qty;
+      cur.rate += r.qty * (r.rate || 0);
+      retByProduct.set(r.product_id, cur);
+    }
   }
   const returnTotal = returns.reduce((s, r) => s + r.qty * (r.rate || 0), 0);
 
   const rows = (bill.items || [])
     .map((i) => {
-      const retQty = retByProduct.get(i.product_id ?? (i as { id?: number }).id ?? Number.NaN) || 0;
+      const ret = retByProduct.get(i.product_id ?? (i as { id?: number }).id ?? Number.NaN);
+      const retQty = ret?.qty || 0;
+      const retAmt = ret?.rate || 0;
       const netQty = Math.max(0, Number(i.quantity) - retQty);
       const outTotal = Number(i.total || i.quantity * i.unit_price - (i.discount || 0));
-      const retAmt = retQty * (i.unit_price || 0);
       const netTotal = Math.max(0, outTotal - retAmt);
       return `<tr>
       <td>${escapeHtml(i.product_name || "-")}</td>

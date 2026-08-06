@@ -138,10 +138,17 @@ function backfillSyncIds(db: PepsiDb) {
       `UPDATE customers SET sync_id = ?, updated_at = ${updatedAtSql(db, "customers")} WHERE id = ?`
     );
     for (const r of rows) {
-      upd.run(
-        stableSyncId(["customer", r.name.trim().toLowerCase(), r.phone.trim(), r.shop_name.trim().toLowerCase()]),
-        r.id
-      );
+      try {
+        upd.run(
+          stableSyncId(["customer", r.name.trim().toLowerCase(), r.phone.trim(), r.shop_name.trim().toLowerCase()]),
+          r.id
+        );
+      } catch {
+        upd.run(
+          stableSyncId(["customer", r.name.trim().toLowerCase(), r.phone.trim(), r.shop_name.trim().toLowerCase(), String(r.id)]),
+          r.id
+        );
+      }
     }
   }
 
@@ -155,7 +162,11 @@ function backfillSyncIds(db: PepsiDb) {
       `UPDATE salesmen SET sync_id = ?, updated_at = ${updatedAtSql(db, "salesmen")} WHERE id = ?`
     );
     for (const r of rows) {
-      upd.run(stableSyncId(["salesman", r.name.trim().toLowerCase(), r.phone.trim()]), r.id);
+      try {
+        upd.run(stableSyncId(["salesman", r.name.trim().toLowerCase(), r.phone.trim()]), r.id);
+      } catch {
+        upd.run(stableSyncId(["salesman", r.name.trim().toLowerCase(), r.phone.trim(), String(r.id)]), r.id);
+      }
     }
   }
 
@@ -167,7 +178,11 @@ function backfillSyncIds(db: PepsiDb) {
       `UPDATE floors SET sync_id = ?, updated_at = ${updatedAtSql(db, "floors")} WHERE id = ?`
     );
     for (const r of rows) {
-      upd.run(stableSyncId(["floor", r.name.trim().toLowerCase()]), r.id);
+      try {
+        upd.run(stableSyncId(["floor", r.name.trim().toLowerCase()]), r.id);
+      } catch {
+        upd.run(stableSyncId(["floor", r.name.trim().toLowerCase(), String(r.id)]), r.id);
+      }
     }
   }
 
@@ -181,7 +196,11 @@ function backfillSyncIds(db: PepsiDb) {
       `UPDATE accounts SET sync_id = ?, updated_at = ${updatedAtSql(db, "accounts")} WHERE id = ?`
     );
     for (const r of rows) {
-      upd.run(stableSyncId(["account", r.name.trim().toLowerCase(), r.account_type]), r.id);
+      try {
+        upd.run(stableSyncId(["account", r.name.trim().toLowerCase(), r.account_type]), r.id);
+      } catch {
+        upd.run(stableSyncId(["account", r.name.trim().toLowerCase(), r.account_type, String(r.id)]), r.id);
+      }
     }
   }
 
@@ -193,7 +212,11 @@ function backfillSyncIds(db: PepsiDb) {
       `UPDATE paper_days SET sync_id = ?, updated_at = ${updatedAtSql(db, "paper_days")} WHERE id = ?`
     );
     for (const r of rows) {
-      upd.run(stableSyncId(["paper", r.entry_date]), r.id);
+      try {
+        upd.run(stableSyncId(["paper", r.entry_date]), r.id);
+      } catch {
+        upd.run(stableSyncId(["paper", r.entry_date, String(r.id)]), r.id);
+      }
     }
   }
 
@@ -394,7 +417,33 @@ export function productMovementNet(db: PepsiDb, productId: number): number {
       .get(productId) as { q: number }
   ).q;
 
-  return Number(purch) - Number(sold) + Number(adj);
+  const saleRet = tableExists(db, "sales_returns")
+    ? (
+        db
+          .prepare(
+            `SELECT COALESCE(SUM(sr.qty), 0) as q
+             FROM sales_returns sr
+             JOIN sales s ON s.id = sr.sale_id
+             WHERE (sr.deleted IS NULL OR sr.deleted = 0) AND sr.product_id = ? AND COALESCE(s.is_historical, 0) = 0`
+          )
+          .get(productId) as { q: number }
+      ).q
+    : 0;
+
+  const purchRet = tableExists(db, "purchase_returns")
+    ? (
+        db
+          .prepare(
+            `SELECT COALESCE(SUM(pr.qty), 0) as q
+             FROM purchase_returns pr
+             JOIN purchases p ON p.id = pr.purchase_id
+             WHERE (pr.deleted IS NULL OR pr.deleted = 0) AND pr.product_id = ? AND COALESCE(p.is_historical, 0) = 0`
+          )
+          .get(productId) as { q: number }
+      ).q
+    : 0;
+
+  return Number(purch) - Number(sold) + Number(adj) + Number(saleRet) - Number(purchRet);
 }
 
 export function recalculateStockAndBalances(db: PepsiDb) {

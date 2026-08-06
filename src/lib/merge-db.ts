@@ -7,6 +7,7 @@ import {
   newSyncId,
 } from "@/lib/sync-ids";
 import { getDb } from "@/lib/db";
+import { ensureSchema } from "@/lib/db";
 import { openDatabase, type PepsiDb } from "@/lib/sqlite";
 
 function ensureDeletedColumn(db: PepsiDb, table: string) {
@@ -106,6 +107,7 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
   fs.copyFileSync(remoteDbPath, tmp);
   const remote = openDatabase(tmp);
   remote.pragma("foreign_keys = OFF");
+  ensureSchema(remote);
   ensureSyncSchema(remote);
   for (const t of MERGE_TABLES) {
     ensureDeletedColumn(remote, t);
@@ -396,6 +398,168 @@ function mergeMasters(
   return added;
 }
 
+function syncPurchaseItems(
+  local: PepsiDb,
+  remote: PepsiDb,
+  localId: number,
+  remoteId: number
+) {
+  const remoteItems = remote
+    .prepare("SELECT * FROM purchase_items WHERE purchase_id = ?")
+    .all(remoteId) as Array<Record<string, unknown>>;
+  const localItems = local
+    .prepare("SELECT id, sync_id, deleted FROM purchase_items WHERE purchase_id = ?")
+    .all(localId) as Array<{ id: number; sync_id: string | null; deleted: number }>;
+  const remoteSyncs = new Set<string>();
+
+  const insertItem = local.prepare(
+    `INSERT INTO purchase_items (
+      sync_id, updated_at, purchase_id, product_id, product_name, company_name, size, quantity,
+      hand_to_hand, conditional, rate_per_cotton, unit_price, total_rate, total
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  );
+  const updateItem = local.prepare(
+    `UPDATE purchase_items SET
+      product_id=?, product_name=?, company_name=?, size=?, quantity=?,
+      hand_to_hand=?, conditional=?, rate_per_cotton=?, unit_price=?, total_rate=?, total=?, updated_at=?
+     WHERE id=?`
+  );
+
+  for (const item of remoteItems) {
+    const itemSync = String(item.sync_id || "");
+    if (itemSync) remoteSyncs.add(itemSync);
+    const productId = remapFk(local, remote, "products", item.product_id as number);
+    if (!productId) continue;
+    const existing =
+      itemSync && itemSync !== "undefined"
+        ? localItems.find((l) => l.sync_id === itemSync)
+        : undefined;
+    if (existing) {
+      if (Number(existing.deleted) === 1) continue;
+      updateItem.run(
+        productId,
+        item.product_name ?? null,
+        item.company_name ?? null,
+        item.size ?? null,
+        item.quantity ?? 0,
+        item.hand_to_hand ?? 0,
+        item.conditional ?? 0,
+        item.rate_per_cotton ?? 0,
+        item.unit_price ?? 0,
+        item.total_rate ?? 0,
+        item.total ?? 0,
+        item.updated_at || new Date().toISOString(),
+        existing.id
+      );
+    } else {
+      if (itemSync && local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(itemSync)) {
+        continue;
+      }
+      insertItem.run(
+        itemSync || newSyncId(),
+        item.updated_at || new Date().toISOString(),
+        localId,
+        productId,
+        item.product_name ?? null,
+        item.company_name ?? null,
+        item.size ?? null,
+        item.quantity ?? 0,
+        item.hand_to_hand ?? 0,
+        item.conditional ?? 0,
+        item.rate_per_cotton ?? 0,
+        item.unit_price ?? 0,
+        item.total_rate ?? 0,
+        item.total ?? 0
+      );
+    }
+  }
+
+  for (const l of localItems) {
+    if (!l.sync_id || remoteSyncs.has(l.sync_id) || Number(l.deleted) === 1) continue;
+    local.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(l.sync_id);
+    local.prepare("UPDATE purchase_items SET deleted = 1 WHERE id = ?").run(l.id);
+  }
+}
+
+function syncSaleItems(
+  local: PepsiDb,
+  remote: PepsiDb,
+  localId: number,
+  remoteId: number
+) {
+  const remoteItems = remote
+    .prepare("SELECT * FROM sale_items WHERE sale_id = ?")
+    .all(remoteId) as Array<Record<string, unknown>>;
+  const localItems = local
+    .prepare("SELECT id, sync_id, deleted FROM sale_items WHERE sale_id = ?")
+    .all(localId) as Array<{ id: number; sync_id: string | null; deleted: number }>;
+  const remoteSyncs = new Set<string>();
+
+  const insertItem = local.prepare(
+    `INSERT INTO sale_items (
+      sync_id, updated_at, sale_id, product_id, product_name, quantity, unit_price,
+      commission, discount, commission_rate, discount_rate, total
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+  );
+  const updateItem = local.prepare(
+    `UPDATE sale_items SET
+      product_id=?, product_name=?, quantity=?, unit_price=?,
+      commission=?, discount=?, commission_rate=?, discount_rate=?, total=?, updated_at=?
+     WHERE id=?`
+  );
+
+  for (const item of remoteItems) {
+    const itemSync = String(item.sync_id || "");
+    if (itemSync) remoteSyncs.add(itemSync);
+    const productId = remapFk(local, remote, "products", item.product_id as number);
+    if (!productId) continue;
+    const existing =
+      itemSync && itemSync !== "undefined"
+        ? localItems.find((l) => l.sync_id === itemSync)
+        : undefined;
+    if (existing) {
+      if (Number(existing.deleted) === 1) continue;
+      updateItem.run(
+        productId,
+        item.product_name ?? null,
+        item.quantity ?? 0,
+        item.unit_price ?? 0,
+        item.commission ?? 0,
+        item.discount ?? 0,
+        item.commission_rate ?? 0,
+        item.discount_rate ?? 0,
+        item.total ?? 0,
+        item.updated_at || new Date().toISOString(),
+        existing.id
+      );
+    } else {
+      if (itemSync && local.prepare("SELECT 1 FROM deleted_records WHERE sync_id = ?").get(itemSync)) {
+        continue;
+      }
+      insertItem.run(
+        itemSync || newSyncId(),
+        item.updated_at || new Date().toISOString(),
+        localId,
+        productId,
+        item.product_name ?? null,
+        item.quantity ?? 0,
+        item.unit_price ?? 0,
+        item.commission ?? 0,
+        item.discount ?? 0,
+        item.commission_rate ?? 0,
+        item.discount_rate ?? 0,
+        item.total ?? 0
+      );
+    }
+  }
+
+  for (const l of localItems) {
+    if (!l.sync_id || remoteSyncs.has(l.sync_id) || Number(l.deleted) === 1) continue;
+    local.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(l.sync_id);
+    local.prepare("UPDATE sale_items SET deleted = 1 WHERE id = ?").run(l.id);
+  }
+}
+
 function mergePurchases(
   local: PepsiDb,
   remote: PepsiDb,
@@ -444,36 +608,7 @@ function mergePurchases(
           row.created_at ?? null
         );
       const localPurchaseId = Number(result.lastInsertRowid);
-      const items = remote
-        .prepare("SELECT * FROM purchase_items WHERE purchase_id = ?")
-        .all(row.id) as Array<Record<string, unknown>>;
-      for (const item of items) {
-        const productId = remapFk(local, remote, "products", item.product_id as number);
-        if (!productId) continue;
-        local
-          .prepare(
-            `INSERT INTO purchase_items (
-              sync_id, updated_at, purchase_id, product_id, product_name, company_name, size, quantity,
-              hand_to_hand, conditional, rate_per_cotton, unit_price, total_rate, total
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-          )
-          .run(
-            item.sync_id || newSyncId(),
-            item.updated_at || new Date().toISOString(),
-            localPurchaseId,
-            productId,
-            item.product_name ?? null,
-            item.company_name ?? null,
-            item.size ?? null,
-            item.quantity ?? 0,
-            item.hand_to_hand ?? 0,
-            item.conditional ?? 0,
-            item.rate_per_cotton ?? 0,
-            item.unit_price ?? 0,
-            item.total_rate ?? 0,
-            item.total ?? 0
-          );
-      }
+      syncPurchaseItems(local, remote, localPurchaseId, Number(row.id));
       added++;
     } else if (Number(existing.deleted) === 1) {
       continue;
@@ -505,6 +640,7 @@ function mergePurchases(
           row.updated_at,
           existing.id
         );
+      syncPurchaseItems(local, remote, existing.id, Number(row.id));
       updated++;
     }
   }
@@ -571,34 +707,7 @@ function mergeSales(
           row.created_at ?? null
         );
       const localSaleId = Number(result.lastInsertRowid);
-      const items = remote
-        .prepare("SELECT * FROM sale_items WHERE sale_id = ?")
-        .all(row.id) as Array<Record<string, unknown>>;
-      for (const item of items) {
-        const productId = remapFk(local, remote, "products", item.product_id as number);
-        if (!productId) continue;
-        local
-          .prepare(
-            `INSERT INTO sale_items (
-              sync_id, updated_at, sale_id, product_id, product_name, quantity, unit_price,
-              commission, discount, commission_rate, discount_rate, total
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-          )
-          .run(
-            item.sync_id || newSyncId(),
-            item.updated_at || new Date().toISOString(),
-            localSaleId,
-            productId,
-            item.product_name ?? null,
-            item.quantity ?? 0,
-            item.unit_price ?? 0,
-            item.commission ?? 0,
-            item.discount ?? 0,
-            item.commission_rate ?? 0,
-            item.discount_rate ?? 0,
-            item.total ?? 0
-          );
-      }
+      syncSaleItems(local, remote, localSaleId, Number(row.id));
       added++;
     } else if (Number(existing.deleted) === 1) {
       continue;
@@ -638,6 +747,7 @@ function mergeSales(
           row.updated_at,
           existing.id
         );
+      syncSaleItems(local, remote, existing.id, Number(row.id));
       updated++;
     }
   }

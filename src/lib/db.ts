@@ -46,7 +46,7 @@ function ensureManualLedgerSchema(db: PepsiDb) {
   addColumn(db, "manual_ledger_entries", "deleted", "INTEGER NOT NULL DEFAULT 0");
 }
 
-function ensureSchema(db: PepsiDb) {
+export function ensureSchema(db: PepsiDb) {
   ensureManualLedgerSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (

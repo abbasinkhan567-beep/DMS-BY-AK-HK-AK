@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
          FROM sales s
          JOIN customers c ON c.id = s.customer_id
          LEFT JOIN salesmen sm ON sm.id = s.salesman_id
-         WHERE s.id = ?`
+         WHERE s.id = ? AND (s.deleted IS NULL OR s.deleted = 0)`
       )
       .get(id);
     if (!sale) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       .prepare(
         `SELECT si.*, p.name as linked_name, p.size as linked_size
          FROM sale_items si LEFT JOIN products p ON p.id = si.product_id
-         WHERE si.sale_id = ?`
+         WHERE si.sale_id = ? AND (si.deleted IS NULL OR si.deleted = 0)`
       )
       .all(id);
     return NextResponse.json({ ...sale, items });
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     .prepare(
       `SELECT s.*,
               c.name as customer_name, c.shop_name, sm.name as salesman_name,
-              (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) as item_count
+              (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id AND (si.deleted IS NULL OR si.deleted = 0)) as item_count
        FROM sales s
        JOIN customers c ON c.id = s.customer_id
        LEFT JOIN salesmen sm ON sm.id = s.salesman_id
@@ -306,13 +306,15 @@ export async function PUT(req: NextRequest) {
             total_amount: number;
             paid_amount: number;
             is_historical: number;
+            invoice_no: string | null;
           }
         | undefined;
       if (!old) throw new Error("Sale not found");
+      const oldRef = old.invoice_no || `#${id}`;
 
       const oldItems = db
-        .prepare("SELECT product_id, quantity FROM sale_items WHERE sale_id = ?")
-        .all(id) as Array<{ product_id: number; quantity: number }>;
+        .prepare("SELECT product_id, quantity, sync_id FROM sale_items WHERE sale_id = ?")
+        .all(id) as Array<{ product_id: number; quantity: number; sync_id: string | null }>;
       if (!old.is_historical) {
         for (const item of oldItems) {
           db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(item.quantity, item.product_id);
@@ -324,7 +326,12 @@ export async function PUT(req: NextRequest) {
           old.customer_id
         );
       }
-      db.prepare("DELETE FROM sale_items WHERE sale_id = ?").run(id);
+      for (const item of oldItems) {
+        if (item.sync_id) {
+          db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(item.sync_id);
+        }
+      }
+      db.prepare("UPDATE sale_items SET deleted = 1 WHERE sale_id = ?").run(id);
 
       for (const item of items) {
         const product = db.prepare("SELECT stock, name FROM products WHERE id = ?").get(item.product_id) as
@@ -384,7 +391,7 @@ export async function PUT(req: NextRequest) {
         `UPDATE sales SET invoice_no=?, customer_id=?, salesman_id=?, sale_date=?, total_amount=?, paid_amount=?,
          payment_type=?, bill_bakaya=?, empty_qty=?, bank_account=?,
          expense1_label=?, expense1_amount=?, expense2_label=?, expense2_amount=?, expense3_label=?, expense3_amount=?,
-         total_commission=?, total_discount=?, total_bill_expense=?, notes=?
+         total_commission=?, total_discount=?, total_bill_expense=?, notes=?, is_historical=?
          WHERE id=?`
       ).run(
         invoice_no || null,
@@ -407,6 +414,7 @@ export async function PUT(req: NextRequest) {
         total_discount,
         total_bill_expense,
         notes || null,
+        isHistorical ? 1 : 0,
         id
       );
 
@@ -452,8 +460,7 @@ export async function PUT(req: NextRequest) {
         invoiceNo: invoice_no || `#${id}`,
       });
 
-      const oldRef = invoice_no || `#${id}`;
-      reverseGeneralEntries(db, oldRef);
+            reverseGeneralEntries(db, oldRef);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(oldRef, "Sale");
 
       for (const entry of entries) {
@@ -523,7 +530,7 @@ export async function DELETE(req: NextRequest) {
       if (!sale) throw new Error("Sale not found");
 
       const items = db
-        .prepare("SELECT product_id, quantity FROM sale_items WHERE sale_id = ?")
+        .prepare("SELECT product_id, quantity FROM sale_items WHERE sale_id = ? AND (deleted IS NULL OR deleted = 0)")
         .all(id) as Array<{ product_id: number; quantity: number }>;
       if (!sale.is_historical) {
         for (const item of items) {
@@ -548,7 +555,7 @@ export async function DELETE(req: NextRequest) {
         .all(id) as Array<{ sync_id: string | null; product_id: number; qty: number }>;
       if (!sale.is_historical) {
         for (const ret of returns) {
-          db.prepare("UPDATE products SET stock = MAX(0, COALESCE(stock, 0) - ?) WHERE id = ?").run(ret.qty, ret.product_id);
+          db.prepare("UPDATE products SET stock = COALESCE(stock, 0) - ? WHERE id = ?").run(ret.qty, ret.product_id);
         }
       }
       for (const ret of returns) {

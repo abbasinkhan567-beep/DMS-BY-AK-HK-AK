@@ -41,9 +41,12 @@ export async function POST(req: NextRequest) {
   try {
     const tx = db.transaction(() => {
       const sale = db
-        .prepare("SELECT id FROM sales WHERE id = ? AND (deleted IS NULL OR deleted = 0)")
-        .get(Number(sale_id)) as { id: number } | undefined;
+        .prepare(
+          "SELECT id, is_historical FROM sales WHERE id = ? AND (deleted IS NULL OR deleted = 0)"
+        )
+        .get(Number(sale_id)) as { id: number; is_historical: number } | undefined;
       if (!sale) throw new Error("Sale not found");
+      const isHistorical = Number(sale.is_historical) === 1;
 
       const created: number[] = [];
       for (const item of list) {
@@ -84,9 +87,11 @@ export async function POST(req: NextRequest) {
           );
         created.push(Number(result.lastInsertRowid));
 
-        db.prepare(
-          "UPDATE products SET stock = COALESCE(stock, 0) + ? WHERE id = ?"
-        ).run(num(item.qty), productId);
+        if (!isHistorical) {
+          db.prepare(
+            "UPDATE products SET stock = COALESCE(stock, 0) + ? WHERE id = ?"
+          ).run(num(item.qty), productId);
+        }
       }
       return created;
     });
@@ -120,10 +125,18 @@ export async function DELETE(req: NextRequest) {
         db.prepare("INSERT OR IGNORE INTO deleted_records (sync_id) VALUES (?)").run(row.sync_id);
       }
       db.prepare("UPDATE sales_returns SET deleted = 1 WHERE id = ?").run(Number(id));
-      db.prepare("UPDATE products SET stock = MAX(0, COALESCE(stock, 0) - ?) WHERE id = ?").run(
-        num(row.qty),
-        row.product_id
-      );
+      const hist = db
+        .prepare(
+          `SELECT COALESCE(s.is_historical, 0) as h FROM sales s
+           JOIN sales_returns sr ON sr.sale_id = s.id WHERE sr.id = ?`
+        )
+        .get(Number(id)) as { h: number } | undefined;
+      if (!hist || Number(hist.h) === 0) {
+        db.prepare("UPDATE products SET stock = COALESCE(stock, 0) - ? WHERE id = ?").run(
+          num(row.qty),
+          row.product_id
+        );
+      }
     });
     tx();
     return NextResponse.json({ ok: true });
