@@ -18,6 +18,17 @@ function ensureDeletedColumn(db: PepsiDb, table: string) {
   }
 }
 
+function ensureReturnRateColumn(db: PepsiDb) {
+  for (const table of ["sales_returns", "purchase_returns"]) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === "rate")) {
+      try {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN rate REAL NOT NULL DEFAULT 0`);
+      } catch { /* column may already exist */ }
+    }
+  }
+}
+
 const MERGE_TABLES = [
   "products", "customers", "salesmen", "purchases", "purchase_items",
   "sales", "sale_items", "expenses", "accounts", "general_entries",
@@ -100,6 +111,8 @@ export function mergeRemoteIntoLocal(remoteDbPath: string): MergeStats {
     ensureDeletedColumn(remote, t);
     ensureDeletedColumn(local, t);
   }
+  ensureReturnRateColumn(remote);
+  ensureReturnRateColumn(local);
 
   const openings = captureOpenings(local);
   const remoteOpenings = captureOpenings(remote);
@@ -905,8 +918,8 @@ function mergeReturns(
     try {
       local
         .prepare(
-          `INSERT INTO ${table} (sync_id, updated_at, ${parentCol}, product_id, qty, return_date, notes, created_at)
-           VALUES (?,?,?,?,?,?,?,?)`
+          `INSERT INTO ${table} (sync_id, updated_at, ${parentCol}, product_id, qty, rate, return_date, notes, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?)`
         )
         .run(
           syncId,
@@ -914,6 +927,7 @@ function mergeReturns(
           parentId,
           productId,
           row.qty ?? 0,
+          row.rate ?? 0,
           row.return_date ?? null,
           row.notes ?? null,
           row.created_at ?? null

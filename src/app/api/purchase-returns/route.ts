@@ -21,12 +21,18 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(rows);
 }
 
+type ReturnInput = { product_id: number; qty: number; rate?: number };
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { purchase_id, product_id, qty, return_date, notes } = body;
-  if (!purchase_id || !product_id || num(qty) <= 0) {
+  const { purchase_id, items } = body as {
+    purchase_id?: number | string;
+    items?: ReturnInput[];
+  };
+  const list = Array.isArray(items) ? items : [];
+  if (!purchase_id || !list.length || list.some((i) => !i.product_id || num(i.qty) <= 0)) {
     return NextResponse.json(
-      { error: "purchase, product and qty greater than 0 are required" },
+      { error: "purchase and at least one item (product + qty > 0) are required" },
       { status: 400 }
     );
   }
@@ -39,55 +45,61 @@ export async function POST(req: NextRequest) {
         .get(Number(purchase_id)) as { id: number } | undefined;
       if (!purchase) throw new Error("Purchase not found");
 
-      const bought = db
-        .prepare(
-          `SELECT SUM(COALESCE(quantity, 0)) as qty FROM purchase_items
-           WHERE purchase_id = ? AND product_id = ? AND (deleted IS NULL OR deleted = 0)`
-        )
-        .get(Number(purchase_id), Number(product_id)) as { qty: number };
-      const returned = db
-        .prepare(
-          `SELECT SUM(COALESCE(qty, 0)) as qty FROM purchase_returns
-           WHERE purchase_id = ? AND product_id = ? AND (deleted IS NULL OR deleted = 0)`
-        )
-        .get(Number(purchase_id), Number(product_id)) as { qty: number };
-      const maxReturn = num(bought.qty) - num(returned.qty);
-      if (maxReturn <= 0 || num(qty) > maxReturn) {
-        throw new Error(`Only ${Math.max(0, maxReturn)} more can be returned for this product`);
+      const created: number[] = [];
+      for (const item of list) {
+        const productId = Number(item.product_id);
+        const bought = db
+          .prepare(
+            `SELECT SUM(COALESCE(quantity, 0)) as qty FROM purchase_items
+             WHERE purchase_id = ? AND product_id = ? AND (deleted IS NULL OR deleted = 0)`
+          )
+          .get(Number(purchase_id), productId) as { qty: number };
+        const returned = db
+          .prepare(
+            `SELECT SUM(COALESCE(qty, 0)) as qty FROM purchase_returns
+             WHERE purchase_id = ? AND product_id = ? AND (deleted IS NULL OR deleted = 0)`
+          )
+          .get(Number(purchase_id), productId) as { qty: number };
+        const maxReturn = num(bought.qty) - num(returned.qty);
+        if (maxReturn <= 0 || num(item.qty) > maxReturn) {
+          throw new Error(
+            `Only ${Math.max(0, maxReturn)} more can be returned for product #${productId}`
+          );
+        }
+
+        const result = db
+          .prepare(
+            `INSERT INTO purchase_returns (sync_id, updated_at, purchase_id, product_id, qty, rate, return_date, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            newSyncId(),
+            new Date().toISOString(),
+            Number(purchase_id),
+            productId,
+            num(item.qty),
+            num(item.rate),
+            body.return_date || todayLocal(),
+            body.notes || null
+          );
+        created.push(Number(result.lastInsertRowid));
+
+        db.prepare(
+          "UPDATE products SET stock = MAX(0, COALESCE(stock, 0) - ?) WHERE id = ?"
+        ).run(num(item.qty), productId);
       }
-
-      const result = db
-        .prepare(
-          `INSERT INTO purchase_returns (sync_id, updated_at, purchase_id, product_id, qty, return_date, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
-          newSyncId(),
-          new Date().toISOString(),
-          Number(purchase_id),
-          Number(product_id),
-          num(qty),
-          return_date || todayLocal(),
-          notes || null
-        );
-      const returnId = Number(result.lastInsertRowid);
-
-      db.prepare(
-        "UPDATE products SET stock = MAX(0, COALESCE(stock, 0) - ?) WHERE id = ?"
-      ).run(num(qty), Number(product_id));
-
-      return returnId;
+      return created;
     });
 
-    const returnId = tx();
-    const row = db
+    const createdIds = tx();
+    const rows = db
       .prepare(
         `SELECT pr.*, p.name as product_name, p.size as product_size
          FROM purchase_returns pr LEFT JOIN products p ON p.id = pr.product_id
-         WHERE pr.id = ?`
+         WHERE pr.id IN (${createdIds.map(() => "?").join(",")})`
       )
-      .get(returnId);
-    return NextResponse.json(row, { status: 201 });
+      .all(...createdIds);
+    return NextResponse.json(rows, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 400 });
   }

@@ -73,11 +73,10 @@ export default function SalesPage() {
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
   const [returnItems, setReturnItems] = useState<LineItem[]>([]);
   const [returnList, setReturnList] = useState<
-    Array<{ id: number; product_id: number; product_name: string; product_size: string | null; qty: number; return_date: string; notes: string | null }>
+    Array<{ id: number; product_id: number; product_name: string; product_size: string | null; qty: number; rate: number; return_date: string; notes: string | null }>
   >([]);
+  const [returnLines, setReturnLines] = useState<Array<{ product_id: number; qty: number; rate: number }>>([]);
   const [returnForm, setReturnForm] = useState({
-    product_id: 0,
-    qty: 0,
     return_date: todayLocal(),
     notes: "",
   });
@@ -323,44 +322,80 @@ export default function SalesPage() {
       commission: Number(i.commission) || 0,
       discount: Number(i.discount) || 0,
     }));
+    const returnListData: typeof returnList = (returns || []).map((r: any) => ({
+      id: r.id,
+      product_id: r.product_id,
+      product_name: r.product_name || "",
+      product_size: r.product_size || null,
+      qty: Number(r.qty) || 0,
+      rate: Number(r.rate) || 0,
+      return_date: r.return_date,
+      notes: r.notes || null,
+    }));
     setReturnSale(sale);
     setReturnItems(items);
-    setReturnList(returns || []);
-    setReturnForm({ product_id: items.length ? items[0].product_id : 0, qty: 0, return_date: todayLocal(), notes: "" });
+    setReturnList(returnListData);
+    setReturnLines([{ product_id: 0, qty: 0, rate: 0 }]);
+    setReturnForm({ return_date: todayLocal(), notes: "" });
     setReturnError("");
     setReturnOpen(true);
   }
 
-  function returnedQty(pid: number) {
-    return returnList.filter((r) => r.product_id === pid).reduce((s, r) => s + r.qty, 0);
-  }
-
   function remainingReturn(pid: number) {
     const sold = returnItems.find((i) => i.product_id === pid)?.quantity || 0;
-    return Math.max(0, sold - returnedQty(pid));
+    return Math.max(0, sold - returnList.filter((r) => r.product_id === pid).reduce((s, r) => s + r.qty, 0));
   }
+
+  function productRate(pid: number) {
+    return returnItems.find((i) => i.product_id === pid)?.unit_price || 0;
+  }
+
+  function productName(pid: number) {
+    return returnItems.find((i) => i.product_id === pid)?.product_name || "";
+  }
+
+  function updateReturnLine(index: number, patch: Partial<{ product_id: number; qty: number; rate: number }>) {
+    setReturnLines((prev) => {
+      const next = prev.map((l, i) => (i === index ? { ...l, ...patch } : l));
+      if (patch.product_id !== undefined) {
+        next[index] = { ...next[index], rate: productRate(patch.product_id) };
+      }
+      return next;
+    });
+  }
+
+  const returnTotal = returnLines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0);
+  const returnGrandQty = returnLines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
 
   async function saveReturn() {
     setReturnError("");
-    if (!returnSale || !returnForm.product_id || Number(returnForm.qty) <= 0) {
-      setReturnError("Product aur qty select karein");
+    if (!returnSale) return;
+    const list = returnLines.filter((l) => l.product_id && Number(l.qty) > 0);
+    if (!list.length) {
+      setReturnError("Koi product + qty add karein");
       return;
     }
-    if (Number(returnForm.qty) > remainingReturn(returnForm.product_id)) {
-      setReturnError(`Sirf ${remainingReturn(returnForm.product_id)} unit return kar sakte hain`);
-      return;
+    for (const line of list) {
+      if (Number(line.qty) > remainingReturn(line.product_id)) {
+        const pname = productName(line.product_id);
+        setReturnError(`${pname || `Product #${line.product_id}`}: sirf ${remainingReturn(line.product_id)} return ho sakta hai`);
+        return;
+      }
     }
     setReturnSaving(true);
     try {
       const res = await fetch("/api/sales-returns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...returnForm, sale_id: returnSale.id }),
+        body: JSON.stringify({ ...returnForm, sale_id: returnSale.id, items: list }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
-      setReturnForm({ ...returnForm, qty: 0 });
-      setReturnList([...(await fetch(`/api/sales-returns?sale_id=${returnSale.id}`).then((r) => r.json()))]);
+      setReturnForm({ ...returnForm, notes: "" });
+      setReturnLines([{ product_id: 0, qty: 0, rate: 0 }]);
+      setReturnList([
+        ...(await fetch(`/api/sales-returns?sale_id=${returnSale.id}`).then((r) => r.json())),
+      ]);
       await load();
     } catch (err) {
       setReturnError(err instanceof Error ? err.message : "Error");
@@ -783,6 +818,7 @@ export default function SalesPage() {
         open={returnOpen}
         onClose={() => setReturnOpen(false)}
         title={`Return Goods — ${returnSale?.shop_name || returnSale?.customer_name || ""}`}
+        wide
       >
         <div className="space-y-4">
           {returnList.length > 0 && (
@@ -797,7 +833,7 @@ export default function SalesPage() {
                 >
                   <span>
                     {r.product_name} {r.product_size ? `(${r.product_size})` : ""} · {r.qty} ·{" "}
-                    {formatDate(r.return_date)}
+                    {formatMoney((r.rate || 0) * r.qty)} · {formatDate(r.return_date)}
                   </span>
                   <button
                     type="button"
@@ -811,26 +847,92 @@ export default function SalesPage() {
             </div>
           )}
 
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-2">Product</th>
+                  <th className="px-3 py-2 w-24">Rate</th>
+                  <th className="px-3 py-2 w-24">Qty</th>
+                  <th className="px-3 py-2 w-24">Amount</th>
+                  <th className="px-3 py-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {returnLines.map((line, index) => {
+                  const rem = line.product_id ? remainingReturn(line.product_id) : 0;
+                  return (
+                    <tr key={index} className="border-b border-slate-100">
+                      <td className="px-3 py-2">
+                        <Select
+                          label=""
+                          value={line.product_id || ""}
+                          onChange={(e) => updateReturnLine(index, { product_id: Number(e.target.value) })}
+                        >
+                          <option value="">-- Select Product --</option>
+                          {returnItems.map((i) => (
+                            <option key={i.product_id} value={i.product_id}>
+                              {i.product_name} (baki: {remainingReturn(i.product_id)})
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          label=""
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={line.rate}
+                          onChange={(e) => updateReturnLine(index, { rate: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          label=""
+                          type="number"
+                          min={0}
+                          max={rem || undefined}
+                          step="any"
+                          value={line.qty}
+                          onChange={(e) => updateReturnLine(index, { qty: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">
+                        {formatMoney((Number(line.qty) || 0) * (Number(line.rate) || 0))}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          className="text-rose-500 hover:text-rose-700"
+                          onClick={() => setReturnLines((prev) => prev.filter((_, i) => i !== index))}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={() => setReturnLines((prev) => [...prev, { product_id: 0, qty: 0, rate: 0 }])}
+          >
+            <Plus size={15} /> Add Product
+          </Button>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-4 py-3">
+            <span className="font-medium text-slate-700">
+              Total Return ({returnGrandQty} pcs)
+            </span>
+            <span className="text-xl font-bold text-brand-700">{formatMoney(returnTotal)}</span>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
-            <Select
-              label="Product"
-              value={returnForm.product_id || ""}
-              onChange={(e) => setReturnForm({ ...returnForm, product_id: Number(e.target.value) })}
-            >
-              {returnItems.map((i) => (
-                <option key={i.product_id} value={i.product_id}>
-                  {i.product_name} (sold: {i.quantity}, returned: {returnedQty(i.product_id)})
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Return Qty"
-              type="number"
-              min={0}
-              step="any"
-              value={returnForm.qty}
-              onChange={(e) => setReturnForm({ ...returnForm, qty: Number(e.target.value) })}
-            />
             <Input
               label="Return Date"
               type="date"
@@ -843,12 +945,6 @@ export default function SalesPage() {
               onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })}
             />
           </div>
-
-          {returnForm.product_id && remainingReturn(returnForm.product_id) > 0 && (
-            <p className="text-xs text-slate-500">
-              {remainingReturn(returnForm.product_id)} units can still be returned for this product.
-            </p>
-          )}
 
           {returnError && <p className="text-sm text-rose-500">{returnError}</p>}
 

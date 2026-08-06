@@ -1,6 +1,6 @@
 {
-  "version": "10.3.5",
+  "version": "10.3.6",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.5: Sales & Purchase Return system — return goods on any sale/purchase bill; stock adjusts automatically; over-limit returns blocked.",
+  "notes": "v10.3.6: Return now works like a bill — add multiple products with rate and qty on Return Goods form; total amount shown; per-product remaining limit enforced.",
   "updatedAt": "2026-08-06"
 }

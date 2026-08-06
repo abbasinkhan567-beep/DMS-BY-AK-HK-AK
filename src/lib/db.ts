@@ -271,6 +271,7 @@ function ensureSchema(db: PepsiDb) {
       sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
       product_id INTEGER NOT NULL REFERENCES products(id),
       qty REAL NOT NULL DEFAULT 0,
+      rate REAL NOT NULL DEFAULT 0,
       return_date TEXT NOT NULL DEFAULT (date('now','localtime')),
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
@@ -281,6 +282,7 @@ function ensureSchema(db: PepsiDb) {
       purchase_id INTEGER NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
       product_id INTEGER NOT NULL REFERENCES products(id),
       qty REAL NOT NULL DEFAULT 0,
+      rate REAL NOT NULL DEFAULT 0,
       return_date TEXT NOT NULL DEFAULT (date('now','localtime')),
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
@@ -376,9 +378,11 @@ function ensureSchema(db: PepsiDb) {
   addColumn(db, "sales_returns", "sync_id", "TEXT");
   addColumn(db, "sales_returns", "updated_at", "TEXT");
   addColumn(db, "sales_returns", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "sales_returns", "rate", "REAL NOT NULL DEFAULT 0");
   addColumn(db, "purchase_returns", "sync_id", "TEXT");
   addColumn(db, "purchase_returns", "updated_at", "TEXT");
   addColumn(db, "purchase_returns", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "purchase_returns", "rate", "REAL NOT NULL DEFAULT 0");
   ensureManualLedgerSchema(db);
 
   const company = db.prepare("SELECT id FROM company_info WHERE id = 1").get();
