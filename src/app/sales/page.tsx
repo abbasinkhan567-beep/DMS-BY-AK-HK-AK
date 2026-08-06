@@ -527,7 +527,7 @@ export default function SalesPage() {
                             onClick={() => openReturn(s)}
                             title="Return goods"
                           >
-                            <RotateCcw size={15} />
+                            <RotateCcw size={15} /> Return
                           </Button>
                           <Button
                             variant="ghost"
