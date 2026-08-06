@@ -155,7 +155,15 @@ export default function SalesPage() {
     (Number(form.expense1_amount) || 0) +
     (Number(form.expense2_amount) || 0) +
     (Number(form.expense3_amount) || 0);
-  const grandTotal = itemsSubtotal - totalDiscount + billExpense;
+  const returnTotal = useMemo(
+    () =>
+      formReturns.reduce(
+        (s, r) => s + (Number(r.qty) || 0) * (Number(r.rate) || 0),
+        0
+      ),
+    [formReturns]
+  );
+  const grandTotal = itemsSubtotal - totalDiscount + billExpense - returnTotal;
   const bakaya = Math.max(0, grandTotal - (Number(form.paid_amount) || 0));
 
   function openCreate() {
@@ -805,11 +813,15 @@ export default function SalesPage() {
               <strong>{formatMoney(billExpense)}</strong>
             </div>
             <div className="flex justify-between">
+              <span>Return Amount</span>
+              <strong className="text-rose-500">- {formatMoney(returnTotal)}</strong>
+            </div>
+            <div className="flex justify-between">
               <span>Bill Balance Due</span>
               <strong className="text-amber-600">{formatMoney(bakaya)}</strong>
             </div>
             <div className="flex justify-between text-base">
-              <span className="font-semibold">Bill Total</span>
+              <span className="font-semibold">Bill Total (Net)</span>
               <strong className="text-brand-700">{formatMoney(grandTotal)}</strong>
             </div>
           </div>

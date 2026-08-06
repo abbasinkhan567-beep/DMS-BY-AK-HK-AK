@@ -129,6 +129,15 @@ export default function PurchasesPage() {
     (Number(form.expense1_amount) || 0) +
     (Number(form.expense2_amount) || 0) +
     (Number(form.expense3_amount) || 0);
+  const returnTotal = useMemo(
+    () =>
+      formReturns.reduce(
+        (s, r) => s + (Number(r.qty) || 0) * (Number(r.rate) || 0),
+        0
+      ),
+    [formReturns]
+  );
+  const netTotal = Math.max(0, total + purchaseExpense - returnTotal);
 
   function openCreate() {
     setEditingId(null);
@@ -672,6 +681,14 @@ export default function PurchasesPage() {
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Purchase Expense</span>
             <strong className="text-rose-500">{formatMoney(purchaseExpense)}</strong>
+          </div>
+          <div className="flex items-center justify-between text-sm text-slate-600">
+            <span>Return Amount</span>
+            <strong className="text-rose-500">- {formatMoney(returnTotal)}</strong>
+          </div>
+          <div className="flex items-center justify-between text-sm text-slate-600">
+            <span>Net Total</span>
+            <strong className="text-brand-700">{formatMoney(netTotal)}</strong>
           </div>
 
           {error && <p className="text-sm text-rose-500">{error}</p>}

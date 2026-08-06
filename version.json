@@ -1,6 +1,7 @@
 {
-  "version": "10.3.9",
+  "version": "10.3.10",
   "name": "Pepsi Distribution",
-  "notes": "v10.3.9: Bug fixes - stock movement now includes returns; edit/delete sale & purchase sync safe; invoice change reverses old entries; bill print uses return rates; merge tolerant of missing tables.",
+  "notes": "v10.3.10: Add Sale/Add Purchase form totals now show Return Amount deduction - Bill Total (Net) = items - discount + expense - returns.",
   "updatedAt": "2026-08-06"
 }
+
