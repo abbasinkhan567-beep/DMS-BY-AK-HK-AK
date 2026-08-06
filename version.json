@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.11",
+    "version":  "10.3.12",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.11: Sale bill print now subtracts returned goods\u0027 commission (Return Commission -X); Sales list shows Return amount per bill.",
+    "notes":  "v10.3.12: Add Sale form summary now shows Return Commission (-X) and Net Commission (gross - return).",
     "updatedAt":  "2026-08-06"
 }

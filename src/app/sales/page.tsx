@@ -164,6 +164,29 @@ export default function SalesPage() {
       ),
     [formReturns]
   );
+  const returnCommission = useMemo(() => {
+    const retQty = new Map<number, number>();
+    for (const r of formReturns) {
+      if (r.product_id)
+        retQty.set(r.product_id, (retQty.get(r.product_id) || 0) + (Number(r.qty) || 0));
+    }
+    const remaining = new Map(retQty);
+    let comm = 0;
+    for (const i of items) {
+      if (!i.product_id || !retQty.has(i.product_id)) continue;
+      const rem = remaining.get(i.product_id) || 0;
+      const lineQty = Number(i.quantity) || 0;
+      const lineRet = Math.min(lineQty, rem);
+      if (lineRet <= 0) continue;
+      remaining.set(i.product_id, rem - lineRet);
+      const cr = Number(i.commission_rate) || 0;
+      if (cr > 0) comm += cr * lineRet;
+      else if (Number(i.commission) > 0 && lineQty > 0)
+        comm += (Number(i.commission) / lineQty) * lineRet;
+    }
+    return comm;
+  }, [items, formReturns]);
+  const netCommission = Math.max(0, totalCommission - returnCommission);
   const grandTotal = itemsSubtotal - totalDiscount + billExpense - returnTotal;
   const bakaya = Math.max(0, grandTotal - (Number(form.paid_amount) || 0));
 
@@ -807,7 +830,11 @@ export default function SalesPage() {
             </div>
             <div className="flex justify-between">
               <span>Total Commission</span>
-              <strong>{formatMoney(totalCommission)}</strong>
+              <strong>{formatMoney(netCommission)}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Return Commission</span>
+              <strong className="text-rose-500">- {formatMoney(returnCommission)}</strong>
             </div>
             <div className="flex justify-between">
               <span>Total Discount</span>
