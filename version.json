@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.13",
+    "version":  "10.3.14",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.13: UX upgrade - darker bolder fonts, keyboard shortcuts (/ search, N new, Ctrl+S save), Old Record buttons in Sales/Purchases (paper-entry removed), Monthly Report page (month-wise ledger of every account), GitHub date-stamped cloud backups (data-backups branch), full English polish.",
+    "notes":  "v10.3.14: GitHub backup push branch-check fix - backups now reliably push to data-backups branch on every create/auto.",
     "updatedAt":  "2026-08-08"
 }

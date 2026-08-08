@@ -376,13 +376,21 @@ export function pushBackupToGitHub(fileName?: string): { ok: boolean; message: s
       /* branch may not exist yet */
     }
     const localBranches = ghRun("git branch --list").trim();
-    if (localBranches.split("\n").some((b) => b.trim() === GITHUB_BACKUP_BRANCH)) {
+    if (
+      localBranches
+        .split("\n")
+        .some((b) => b.trim().replace(/^\*\s*/, "") === GITHUB_BACKUP_BRANCH)
+    ) {
       ghRun(`git checkout ${GITHUB_BACKUP_BRANCH}`);
     } else {
       try {
         ghRun(`git checkout -b ${GITHUB_BACKUP_BRANCH} origin/${GITHUB_BACKUP_BRANCH}`);
       } catch {
-        ghRun(`git checkout -b ${GITHUB_BACKUP_BRANCH}`);
+        try {
+          ghRun(`git checkout -b ${GITHUB_BACKUP_BRANCH}`);
+        } catch {
+          ghRun(`git checkout ${GITHUB_BACKUP_BRANCH}`);
+        }
       }
     }
 
