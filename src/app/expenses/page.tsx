@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
@@ -178,7 +178,7 @@ export default function ExpensesPage() {
             >
               <FileSpreadsheet size={16} /> Excel
             </Button>
-            <Button onClick={openCreate}>
+            <Button data-add-new onClick={openCreate}>
               <Plus size={16} /> Add Expense
             </Button>
           </div>
@@ -303,7 +303,7 @@ export default function ExpensesPage() {
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" data-save disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </Button>
           </div>

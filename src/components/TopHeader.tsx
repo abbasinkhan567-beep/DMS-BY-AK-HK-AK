@@ -26,6 +26,16 @@ export function TopHeader() {
           <span className="pepsi-stripe h-2 w-8 rounded-full" aria-hidden />
         )}
         <span className="text-sm font-semibold text-ink">Pepsi Distribution</span>
+        <span className="ml-3 hidden items-center gap-1.5 text-[11px] text-muted 2xl:flex">
+          <kbd className="rounded border border-edge bg-surface-card px-1.5 py-0.5 font-sans font-semibold text-ink">/</kbd>
+          Search
+          <kbd className="ml-1 rounded border border-edge bg-surface-card px-1.5 py-0.5 font-sans font-semibold text-ink">N</kbd>
+          New
+          <kbd className="ml-1 rounded border border-edge bg-surface-card px-1.5 py-0.5 font-sans font-semibold text-ink">Ctrl+S</kbd>
+          Save
+          <kbd className="ml-1 rounded border border-edge bg-surface-card px-1.5 py-0.5 font-sans font-semibold text-ink">Esc</kbd>
+          Close
+        </span>
       </div>
 
       <ThemeSwitcher compact />

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
@@ -325,11 +325,32 @@ export default function PurchasesPage() {
     <div>
       <PageHeader
         title="Purchases"
-        subtitle="Purchases"
+        subtitle="Purchases & returns"
         action={
-          <Button onClick={openCreate}>
-            <Plus size={16} /> Add Purchase
-          </Button>
+          <div className="flex gap-2">
+            <Button data-add-new onClick={openCreate}>
+              <Plus size={16} /> Add Purchase
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setHistorical(true);
+                setEditingId(null);
+                setError("");
+                setForm((f) => ({
+                  ...f,
+                  purchase_date: todayLocal(),
+                  paid_amount: 0,
+                  payment_type: "cash",
+                  notes: "Paper / old record",
+                }));
+                setItems([emptyLine()]);
+                setOpen(true);
+              }}
+            >
+              <FileText size={16} /> Old Record
+            </Button>
+          </div>
         }
       />
 
@@ -697,7 +718,7 @@ export default function PurchasesPage() {
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" data-save disabled={saving}>
               {saving ? "Saving..." : "Save Purchase"}
             </Button>
           </div>

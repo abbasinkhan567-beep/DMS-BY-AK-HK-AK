@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { TopHeader } from "@/components/TopHeader";
 import { CreditsWatermark } from "@/components/CreditsWatermark";
 import { AutoBackupRunner } from "@/components/AutoBackupRunner";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,6 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AutoBackupRunner />
+      <KeyboardShortcuts />
       <div className="flex min-h-screen bg-surface">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">

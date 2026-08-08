@@ -15,7 +15,7 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   TrendingUp,
-  FileText,
+  CalendarDays,
   NotebookPen,
 } from "lucide-react";
 import { formatMoney, readJson } from "@/lib/utils";
@@ -35,7 +35,7 @@ type DashboardData = {
 
 const modules = [
   { href: "/income", label: "Income", desc: "Daily / Monthly / Yearly", icon: TrendingUp },
-  { href: "/paper-entry", label: "Paper Records", desc: "Old forms by date", icon: FileText },
+  { href: "/monthly", label: "Monthly Report", desc: "Full month account of everything", icon: CalendarDays },
   { href: "/products", label: "Products", desc: "Stock & rates", icon: Package },
   { href: "/purchases", label: "Purchases", desc: "Buy from company", icon: Truck },
   { href: "/sales", label: "Sales", desc: "Bills & commission", icon: ShoppingCart },

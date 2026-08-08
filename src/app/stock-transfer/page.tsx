@@ -86,6 +86,7 @@ export default function StockTransferPage() {
         subtitle="Transfers"
         action={
           <Button
+            data-add-new
             onClick={() => {
               setEditing(null);
               setError("");
@@ -246,7 +247,7 @@ export default function StockTransferPage() {
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" data-save disabled={saving}>
               Save
             </Button>
           </div>

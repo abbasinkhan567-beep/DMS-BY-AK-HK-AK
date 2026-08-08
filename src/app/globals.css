@@ -25,9 +25,9 @@
   --surface: #f3f5f8;
   --surface-card: #ffffff;
   --surface-muted: #f8fafc;
-  --ink: #1e293b;
-  --muted: #64748b;
-  --edge: #e2e8f0;
+  --ink: #0f172a;
+  --muted: #475569;
+  --edge: #d7e0ea;
   --header: rgba(243, 245, 248, 0.9);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
   --shadow-soft: 0 2px 12px rgba(15, 23, 42, 0.06);
@@ -92,12 +92,24 @@ body {
   min-height: 100%;
 }
 
+html {
+  font-size: 15.5px;
+}
+
 body {
   font-family: var(--font-body);
   color: var(--ink);
   background: var(--surface);
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@layer base {
+  label,
+  th,
+  td {
+    font-size: 0.9375rem;
+  }
 }
 
 * {
@@ -116,7 +128,7 @@ table {
   }
 
   .status-pill {
-    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide;
   }
 
   .credits-watermark {

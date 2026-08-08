@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -101,7 +101,7 @@ export default function SalesmenPage() {
         title="Salesmen"
         subtitle="Team"
         action={
-          <Button onClick={openCreate}>
+          <Button data-add-new onClick={openCreate}>
             <Plus size={16} /> Add Salesman
           </Button>
         }
@@ -209,7 +209,7 @@ export default function SalesmenPage() {
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" data-save disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </Button>
           </div>

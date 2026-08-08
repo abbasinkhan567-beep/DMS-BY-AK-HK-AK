@@ -160,6 +160,7 @@ export default function GeneralEntryPage() {
               </Button>
             ) : (
               <Button
+                data-add-new
                 onClick={() => {
                   setEditEntry(null);
                   setEntryForm({
@@ -440,7 +441,7 @@ export default function GeneralEntryPage() {
             <Button variant="secondary" type="button" onClick={() => setOpenAcc(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" data-save disabled={saving}>
               Save
             </Button>
           </div>
@@ -503,7 +504,7 @@ export default function GeneralEntryPage() {
             <Button variant="secondary" type="button" onClick={() => setOpenEntry(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" data-save disabled={saving}>
               Save
             </Button>
           </div>

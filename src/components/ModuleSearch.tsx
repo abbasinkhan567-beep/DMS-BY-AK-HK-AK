@@ -23,6 +23,7 @@ export function ModuleSearch({
         />
         <input
           type="search"
+          data-search
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}

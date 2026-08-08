@@ -5,6 +5,7 @@ import {
   deleteBackup,
   ensureDailyAutoBackup,
   listBackups,
+  pushBackupToGitHub,
   readBackupFile,
   restoreBackup,
 } from "@/lib/backup";
@@ -50,10 +51,12 @@ export async function POST(req: NextRequest) {
   try {
     if (action === "create" || action === "manual") {
       const info = createBackup("manual");
+      const github = pushBackupToGitHub(info.name);
       return NextResponse.json({
         ok: true,
         message: "Local backup saved in app folder and Documents.",
         backup: info,
+        github,
         status: backupStatus(),
         backups: listBackups().slice(0, 40),
       });
@@ -61,6 +64,9 @@ export async function POST(req: NextRequest) {
 
     if (action === "auto") {
       const info = ensureDailyAutoBackup();
+      if (info) {
+        pushBackupToGitHub(info.name);
+      }
       return NextResponse.json({
         ok: true,
         created: Boolean(info),

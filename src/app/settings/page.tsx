@@ -14,6 +14,7 @@ import {
   RefreshCcw,
   Trash2,
   AlertTriangle,
+  CloudUpload,
 } from "lucide-react";
 import { Button, Card, Input, PageHeader, TextArea } from "@/components/ui";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -56,6 +57,7 @@ type BackupStatus = {
   count?: number;
   liveDbSize?: number;
   backups?: BackupRow[];
+  github?: { enabled?: boolean; lastPush?: string | null; file?: string | null };
 };
 
 type SyncStatus = {
@@ -259,6 +261,27 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Backup failed");
       setMsg(data.message || "Backup saved");
+      setBackupInfo({ ...data.status, backups: data.backups });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Backup failed");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function pushGitHubBackup() {
+    setBackupBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      const res = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", github_only: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Backup failed");
+      setMsg(data.github?.message || data.message || "Backup saved");
       setBackupInfo({ ...data.status, backups: data.backups });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Backup failed");
@@ -786,6 +809,40 @@ export default function SettingsPage() {
               {backupInfo?.docsBackupDir && (
                 <p className="text-xs text-muted">Documents backup enabled</p>
               )}
+            </div>
+          </Card>
+
+          <Card title="GitHub cloud backup">
+            <div className="space-y-4 p-5">
+              <p className="text-sm text-muted">
+                Every backup is also pushed to your GitHub repository (branch{" "}
+                <code className="rounded bg-surface-muted px-1.5 py-0.5 text-xs font-semibold text-ink">
+                  data-backups
+                </code>
+                ) so your data is safe even if this PC fails. Needs a GitHub token set in the Sync
+                tab.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={pushGitHubBackup} disabled={backupBusy}>
+                  <CloudUpload size={16} />
+                  {backupBusy ? "Working..." : "Backup & Push to GitHub"}
+                </Button>
+                <span className="text-sm text-muted">
+                  {backupInfo?.github?.enabled ? (
+                    <>
+                      Last cloud backup:{" "}
+                      <b className="text-ink">
+                        {backupInfo.github.file} ·{" "}
+                        {backupInfo.github.lastPush
+                          ? new Date(backupInfo.github.lastPush).toLocaleString()
+                          : "just now"}
+                      </b>
+                    </>
+                  ) : (
+                    "No cloud backup yet."
+                  )}
+                </span>
+              </div>
             </div>
           </Card>
 

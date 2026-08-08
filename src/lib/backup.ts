@@ -1,7 +1,10 @@
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { dbPath, getDb, resetDbConnection } from "@/lib/db";
 import { todayLocal } from "@/lib/utils";
+import { injectGitHubToken, normalizeGitHubRepoUrl } from "@/lib/github-url";
+import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
 
 export const backupsDir = path.join(process.cwd(), "data", "backups");
 export const docsBackupDir = path.join(
@@ -12,6 +15,10 @@ export const docsBackupDir = path.join(
 
 const DAY_ONE = "pepsi-day-one.db";
 const MARKER = path.join(backupsDir, ".last-auto-backup");
+const GITHUB_BACKUP_BRANCH = "data-backups";
+const GITHUB_ROOT = path.join(process.cwd(), "data", "backup-repo");
+const GITHUB_MARKER = path.join(process.cwd(), "data", ".github-last-backup");
+const GITHUB_KEEP = 12;
 
 export type BackupInfo = {
   name: string;
@@ -269,5 +276,150 @@ export function backupStatus() {
     latest: list.find((b) => !b.protected) || null,
     liveDbExists: fs.existsSync(dbPath),
     liveDbSize: fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0,
+    github: getGithubBackupStatus(),
   };
+}
+
+function ghRun(cmd: string, cwd: string = GITHUB_ROOT) {
+  return execSync(cmd, {
+    cwd,
+    encoding: "utf8",
+    windowsHide: true,
+    stdio: ["pipe", "pipe", "pipe"],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+  });
+}
+
+function getGithubToken() {
+  try {
+    const row = getDb()
+      .prepare("SELECT value FROM app_settings WHERE key = 'github_sync_token'")
+      .get() as { value?: string } | undefined;
+    return row?.value || "";
+  } catch {
+    return "";
+  }
+}
+
+function getOriginUrl(): string {
+  try {
+    return ghRun("git remote get-url origin", process.cwd()).trim();
+  } catch {
+    return DEFAULT_GITHUB_REPO;
+  }
+}
+
+export function getGithubBackupStatus(): {
+  enabled: boolean;
+  lastPush: string | null;
+  file: string | null;
+} {
+  if (!fs.existsSync(GITHUB_MARKER)) {
+    return { enabled: false, lastPush: null, file: null };
+  }
+  try {
+    const j = JSON.parse(fs.readFileSync(GITHUB_MARKER, "utf8")) as {
+      at?: string;
+      file?: string;
+    };
+    return { enabled: true, lastPush: j.at || null, file: j.file || null };
+  } catch {
+    return { enabled: false, lastPush: null, file: null };
+  }
+}
+
+/**
+ * Push a dated backup copy to GitHub (branch `data-backups`) so backups
+ * exist both locally (date-stamped folders) and in the cloud. Keeps only
+ * the newest GITHUB_KEEP files on the remote branch.
+ */
+export function pushBackupToGitHub(fileName?: string): { ok: boolean; message: string } {
+  try {
+    const token = getGithubToken();
+    if (!token) {
+      return { ok: false, message: "No GitHub token set. Add it in Settings > Sync." };
+    }
+
+    let url = normalizeGitHubRepoUrl(getOriginUrl());
+    url = injectGitHubToken(url, token);
+
+    if (!fileName) {
+      const latest = listBackups().find((b) => !b.protected);
+      if (latest) fileName = latest.name;
+    }
+    const safe = fileName ? path.basename(fileName) : "";
+    if (!safe || (!safe.startsWith("pepsi-backup-") && safe !== DAY_ONE) || !safe.endsWith(".db")) {
+      return { ok: false, message: "No backup file available to push" };
+    }
+    const src = path.join(backupsDir, safe);
+    if (!fs.existsSync(src)) {
+      return { ok: false, message: "Backup file not found" };
+    }
+
+    fs.mkdirSync(GITHUB_ROOT, { recursive: true });
+    if (!fs.existsSync(path.join(GITHUB_ROOT, ".git"))) {
+      ghRun(`git init -b ${GITHUB_BACKUP_BRANCH}`);
+      ghRun('git config user.name "Pepsi Distribution Backup"');
+      ghRun('git config user.email "pepsi@local"');
+      ghRun(`git remote add origin ${url}`);
+    } else {
+      try {
+        ghRun(`git remote set-url origin ${url}`);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    try {
+      ghRun(`git fetch origin ${GITHUB_BACKUP_BRANCH} --depth 1`);
+    } catch {
+      /* branch may not exist yet */
+    }
+    const localBranches = ghRun("git branch --list").trim();
+    if (localBranches.split("\n").some((b) => b.trim() === GITHUB_BACKUP_BRANCH)) {
+      ghRun(`git checkout ${GITHUB_BACKUP_BRANCH}`);
+    } else {
+      try {
+        ghRun(`git checkout -b ${GITHUB_BACKUP_BRANCH} origin/${GITHUB_BACKUP_BRANCH}`);
+      } catch {
+        ghRun(`git checkout -b ${GITHUB_BACKUP_BRANCH}`);
+      }
+    }
+
+    const destDir = path.join(GITHUB_ROOT, "backups");
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copyFileSync(src, path.join(destDir, safe));
+
+    const kept = fs
+      .readdirSync(destDir)
+      .filter((f) => f.startsWith("pepsi-backup-") && f.endsWith(".db"))
+      .map((f) => {
+        const p = path.join(destDir, f);
+        return { f, m: fs.statSync(p).mtimeMs };
+      })
+      .sort((a, b) => b.m - a.m);
+    for (const old of kept.slice(GITHUB_KEEP)) {
+      try {
+        fs.unlinkSync(path.join(destDir, old.f));
+      } catch {
+        /* ignore */
+      }
+    }
+
+    ghRun("git add -A backups");
+    const changed = ghRun("git status --porcelain").trim();
+    if (changed) {
+      ghRun(`git commit -m "backup ${safe}"`);
+      ghRun(`git push origin ${GITHUB_BACKUP_BRANCH}`);
+    }
+
+    fs.writeFileSync(
+      GITHUB_MARKER,
+      JSON.stringify({ at: new Date().toISOString(), file: safe }),
+      "utf8"
+    );
+    return { ok: true, message: `Pushed ${safe} to GitHub (${GITHUB_BACKUP_BRANCH} branch)` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
 }

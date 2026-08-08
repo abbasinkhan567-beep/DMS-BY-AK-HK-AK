@@ -20,7 +20,7 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   TrendingUp,
-  FileText,
+  CalendarDays,
   NotebookPen,
 } from "lucide-react";
 import { useState } from "react";
@@ -31,7 +31,7 @@ import { useTheme } from "@/components/ThemeProvider";
 const mainLinks = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/income", label: "Income", icon: TrendingUp },
-  { href: "/paper-entry", label: "Paper / Old Records", icon: FileText },
+  { href: "/monthly", label: "Monthly Report", icon: CalendarDays },
 ];
 
 const businessLinks = [
