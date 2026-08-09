@@ -149,10 +149,42 @@ export function getLedgerRows(
     } else {
       sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
              COALESCE(sm.name, 'No Salesman') as party,
-             COALESCE(s.total_commission, 0) as debit,
+             COALESCE(s.total_commission, 0) -
+             COALESCE((
+               SELECT SUM(
+                 CASE WHEN si.commission_rate > 0
+                   THEN si.commission_rate * (r1.returned_qty * si.quantity * 1.0 / NULLIF(t.range_qty, 0))
+                   ELSE si.commission * (r1.returned_qty * 1.0 / NULLIF(t.range_qty, 0))
+                 END
+               )
+               FROM sale_items si
+               JOIN (SELECT product_id, SUM(qty) as returned_qty FROM sales_returns
+                     WHERE sale_id = s.id AND (deleted IS NULL OR deleted = 0)
+                     GROUP BY product_id) r1 ON r1.product_id = si.product_id
+               JOIN (SELECT product_id, SUM(quantity) as range_qty FROM sale_items
+                     WHERE sale_id = s.id AND (deleted IS NULL OR deleted = 0)
+                     GROUP BY product_id) t ON t.product_id = si.product_id
+               WHERE si.sale_id = s.id AND (si.deleted IS NULL OR si.deleted = 0)
+             ), 0) as debit,
              0 as credit,
              COALESCE(c.shop_name, c.name) as source,
-             'Commission: ' || printf('%.2f', COALESCE(s.total_commission, 0)) ||
+             'Commission: ' || printf('%.2f', COALESCE(s.total_commission, 0) -
+             COALESCE((
+               SELECT SUM(
+                 CASE WHEN si.commission_rate > 0
+                   THEN si.commission_rate * (r1.returned_qty * si.quantity * 1.0 / NULLIF(t.range_qty, 0))
+                   ELSE si.commission * (r1.returned_qty * 1.0 / NULLIF(t.range_qty, 0))
+                 END
+               )
+               FROM sale_items si
+               JOIN (SELECT product_id, SUM(qty) as returned_qty FROM sales_returns
+                     WHERE sale_id = s.id AND (deleted IS NULL OR deleted = 0)
+                     GROUP BY product_id) r1 ON r1.product_id = si.product_id
+               JOIN (SELECT product_id, SUM(quantity) as range_qty FROM sale_items
+                     WHERE sale_id = s.id AND (deleted IS NULL OR deleted = 0)
+                     GROUP BY product_id) t ON t.product_id = si.product_id
+               WHERE si.sale_id = s.id AND (si.deleted IS NULL OR si.deleted = 0)
+             ), 0)) ||
              ' | Per Pack: ' || printf('%.2f', COALESCE((SELECT MAX(commission_rate) FROM sale_items WHERE sale_id = s.id), 0)) ||
              ' | Sale: ' || printf('%.2f', s.total_amount) ||
              ' | Discount: ' || printf('%.2f', COALESCE(s.total_discount, 0)) as notes, NULL as sub_type, 0 as manual

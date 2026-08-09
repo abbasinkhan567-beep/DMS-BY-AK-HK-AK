@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.14",
+    "version":  "10.3.15",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.14: GitHub backup push branch-check fix - backups now reliably push to data-backups branch on every create/auto.",
+    "notes":  "v10.3.15: Salesman commission in Ledger now shows NET commission - returned goods\u0027s commission is auto-deducted per sale (also in Monthly Report).",
     "updatedAt":  "2026-08-08"
 }
