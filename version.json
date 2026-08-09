@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.16",
+    "version":  "10.3.17",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.16: Salesman Ledger new \u0027Commission\u0027 subtab - each salesman\u0027s commission from bills grouped separately (net of returns), per month via date filter.",
+    "notes":  "v10.3.17: Commission subtab - big total commission banner + Print Commission button (per-salesman report with subtotals \u0026 grand total).",
     "updatedAt":  "2026-08-09"
 }

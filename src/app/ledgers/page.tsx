@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useState, Fragment } from "react";
-import { formatDate, formatMoney, downloadCsv, todayLocal } from "@/lib/utils";
+import { formatDate, formatMoney, downloadCsv, todayLocal, printHtml, escapeHtml } from "@/lib/utils";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
-import { FileSpreadsheet, Plus, X, Trash2, Pencil } from "lucide-react";
+import { FileSpreadsheet, Plus, X, Trash2, Pencil, Printer } from "lucide-react";
 import { ModuleSearch, matchSearch } from "@/components/ModuleSearch";
 import { ledgerSubTabs } from "@/lib/ledger-categories";
 
@@ -159,15 +159,63 @@ export default function LedgersPage() {
     }
   }
 
+  const grandCommission = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+
+  function printCommission() {
+    const allSegments: { party: string | null; rows: LedgerRow[] }[] = [];
+    for (const r of rows) {
+      const last = allSegments[allSegments.length - 1];
+      if (!last || last.party !== r.party) allSegments.push({ party: r.party, rows: [r] });
+      else last.rows.push(r);
+    }
+    const period =
+      from && to ? `${formatDate(from)} - ${formatDate(to)}` : from ? `From ${formatDate(from)}` : to ? `Until ${formatDate(to)}` : "All time";
+    const sections = allSegments
+      .map((seg) => {
+        const segTotal = seg.rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+        const body = seg.rows
+          .map(
+            (r) => `<tr>
+              <td>${escapeHtml(formatDate(r.date))}</td>
+              <td>${escapeHtml(r.ref || "-")}</td>
+              <td>${escapeHtml(r.source || "-")}</td>
+              <td style="text-align:right">${escapeHtml(formatMoney(Number(r.debit) || 0))}</td>
+            </tr>`
+          )
+          .join("");
+        return `<h3 style="margin:16px 0 4px;font-size:14px;text-transform:uppercase;letter-spacing:0.5px">${escapeHtml(seg.party || "-")}</h3>
+          <table>
+            <thead><tr><th>Date</th><th>Ref</th><th>Customer</th><th style="text-align:right">Commission</th></tr></thead>
+            <tbody>${body}
+              <tr><td colspan="3" style="text-align:right;font-weight:600">Sub Total</td><td style="text-align:right;font-weight:600">${escapeHtml(formatMoney(segTotal))}</td></tr>
+            </tbody>
+          </table>`;
+      })
+      .join("");
+    printHtml(
+      "Salesman Commission Report",
+      `<h1>Salesman Commission Report</h1>
+       <h2>${escapeHtml(period)}</h2>
+       ${sections}
+       <div class="totals"><div class="grand"><span>Total Commission</span><span>${escapeHtml(formatMoney(grandCommission))}</span></div></div>`
+    );
+  }
+
   return (
     <div>
       <PageHeader
         title="Ledgers"
         subtitle="Ledgers"
         action={
-          <Button onClick={openCreate} className={isCommission ? "hidden" : ""}>
-            <Plus size={16} /> Add Entry
-          </Button>
+          isCommission ? (
+            <Button onClick={printCommission}>
+              <Printer size={16} /> Print Commission
+            </Button>
+          ) : (
+            <Button onClick={openCreate}>
+              <Plus size={16} /> Add Entry
+            </Button>
+          )
         }
       />
 
@@ -216,18 +264,29 @@ export default function LedgersPage() {
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <div className="card px-4 py-3">
-          <p className="text-xs text-slate-400">{colLabels.debit}</p>
-          <p className="text-lg font-bold text-slate-800">{formatMoney(totalDebit)}</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="text-xs text-slate-400">{colLabels.credit}</p>
-          <p className="text-lg font-bold text-slate-800">{formatMoney(totalCredit)}</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="text-xs text-slate-400">Balance</p>
-          <p className="text-lg font-bold text-brand-700">{formatMoney(totalDebit - totalCredit)}</p>
-        </div>
+        {isCommission ? (
+          <div className="card col-span-3 border-brand-100 bg-gradient-to-r from-brand-50 to-surface-card px-6 py-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+              Total Commission ({from && to ? `${formatDate(from)} - ${formatDate(to)}` : "selected period"})
+            </p>
+            <p className="mt-1 text-3xl font-extrabold text-brand-800">{formatMoney(grandCommission)}</p>
+          </div>
+        ) : (
+          <>
+            <div className="card px-4 py-3">
+              <p className="text-xs text-slate-400">{colLabels.debit}</p>
+              <p className="text-lg font-bold text-slate-800">{formatMoney(totalDebit)}</p>
+            </div>
+            <div className="card px-4 py-3">
+              <p className="text-xs text-slate-400">{colLabels.credit}</p>
+              <p className="text-lg font-bold text-slate-800">{formatMoney(totalCredit)}</p>
+            </div>
+            <div className="card px-4 py-3">
+              <p className="text-xs text-slate-400">Balance</p>
+              <p className="text-lg font-bold text-brand-700">{formatMoney(totalDebit - totalCredit)}</p>
+            </div>
+          </>
+        )}
       </div>
 
       <Card>
