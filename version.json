@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.15",
+    "version":  "10.3.16",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.15: Salesman commission in Ledger now shows NET commission - returned goods\u0027s commission is auto-deducted per sale (also in Monthly Report).",
-    "updatedAt":  "2026-08-08"
+    "notes":  "v10.3.16: Salesman Ledger new \u0027Commission\u0027 subtab - each salesman\u0027s commission from bills grouped separately (net of returns), per month via date filter.",
+    "updatedAt":  "2026-08-09"
 }

@@ -7,6 +7,7 @@ export const ledgerSubTabs = {
   ],
   salesman: [
     { id: "salesman", label: "All" },
+    { id: "salesman-commission", label: "Commission" },
     { id: "salesman-to-customer", label: "Salesman → Customer" },
     { id: "customer-to-salesman", label: "Customer → Salesman" },
   ],

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { formatDate, formatMoney, downloadCsv, todayLocal } from "@/lib/utils";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
 import { FileSpreadsheet, Plus, X, Trash2, Pencil } from "lucide-react";
@@ -149,13 +149,23 @@ export default function LedgersPage() {
     matchSearch(`${r.party || ""} ${r.ref || ""} ${r.source || ""} ${r.notes ?? ""}`, q)
   );
 
+  const isCommission = tab === "salesman" && subTab === "salesman-commission";
+  const segments: { party: string | null; rows: LedgerRow[] }[] = [];
+  if (isCommission) {
+    for (const r of filtered) {
+      const last = segments[segments.length - 1];
+      if (!last || last.party !== r.party) segments.push({ party: r.party, rows: [r] });
+      else last.rows.push(r);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Ledgers"
         subtitle="Ledgers"
         action={
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} className={isCommission ? "hidden" : ""}>
             <Plus size={16} /> Add Entry
           </Button>
         }
@@ -244,6 +254,35 @@ export default function LedgersPage() {
                     {q ? "No data found for this name." : "No entries in this ledger yet."}
                   </td>
                 </tr>
+              ) : isCommission ? (
+                segments.map((seg) => {
+                  const segTotal = seg.rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+                  return (
+                    <Fragment key={seg.party || "-"}>
+                      <tr className="bg-brand-50">
+                        <td colSpan={8} className="px-5 py-2.5">
+                          <span className="text-sm font-bold text-brand-800">{seg.party || "-"}</span>
+                          <span className="ml-2 text-xs text-muted">({seg.rows.length} sale{seg.rows.length === 1 ? "" : "s"})</span>
+                          <span className="float-right text-sm font-bold text-brand-700">
+                            Commission: {formatMoney(segTotal)}
+                          </span>
+                        </td>
+                      </tr>
+                      {seg.rows.map((r, i) => (
+                        <tr key={`${r.id}-${i}`} className="border-b border-slate-50">
+                          <td className="px-5 py-3 text-slate-600">{formatDate(r.date)}</td>
+                          <td className="px-5 py-3 text-slate-600">{r.ref || "-"}</td>
+                          <td className="px-5 py-3 font-medium text-slate-800">{r.party || "-"}</td>
+                          <td className="px-5 py-3">{formatMoney(Number(r.debit) || 0)}</td>
+                          <td className="px-5 py-3">{formatMoney(Number(r.credit) || 0)}</td>
+                          <td className="px-5 py-3 text-slate-600">{r.source || "-"}</td>
+                          <td className="px-5 py-3 text-slate-500">{r.notes ?? "-"}</td>
+                          <td className="px-5 py-3" />
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })
               ) : (
                 filtered.map((r, i) => (
                   <tr key={`${r.id}-${i}`} className="border-b border-slate-50">

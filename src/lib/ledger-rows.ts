@@ -146,6 +146,37 @@ export function getLedgerRows(
              JOIN customers c ON c.id = s.customer_id
              LEFT JOIN salesmen sm ON sm.id = s.salesman_id
              WHERE (s.deleted IS NULL OR s.deleted = 0) AND s.salesman_id IS NOT NULL`;
+    } else if (subType === "salesman-commission") {
+      const retSql = `COALESCE((
+               SELECT SUM(
+                 CASE WHEN si.commission_rate > 0
+                   THEN si.commission_rate * (r1.returned_qty * si.quantity * 1.0 / NULLIF(t.range_qty, 0))
+                   ELSE si.commission * (r1.returned_qty * 1.0 / NULLIF(t.range_qty, 0))
+                 END
+               )
+               FROM sale_items si
+               JOIN (SELECT product_id, SUM(qty) as returned_qty FROM sales_returns
+                     WHERE sale_id = s.id AND (deleted IS NULL OR deleted = 0)
+                     GROUP BY product_id) r1 ON r1.product_id = si.product_id
+               JOIN (SELECT product_id, SUM(quantity) as range_qty FROM sale_items
+                     WHERE sale_id = s.id AND (deleted IS NULL OR deleted = 0)
+                     GROUP BY product_id) t ON t.product_id = si.product_id
+               WHERE si.sale_id = s.id AND (si.deleted IS NULL OR si.deleted = 0)
+             ), 0)`;
+      sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
+             COALESCE(sm.name, 'No Salesman') as party,
+             COALESCE(s.total_commission, 0) - ${retSql} as debit,
+             0 as credit, COALESCE(c.shop_name, c.name) as source,
+             'Commission: ' || printf('%.2f', COALESCE(s.total_commission, 0) - ${retSql}) || ' | Sale: ' || printf('%.2f', s.total_amount) as notes,
+             NULL as sub_type, 0 as manual
+             FROM sales s
+             LEFT JOIN salesmen sm ON sm.id = s.salesman_id
+             JOIN customers c ON c.id = s.customer_id
+             WHERE (s.deleted IS NULL OR s.deleted = 0)
+             AND s.salesman_id IS NOT NULL AND COALESCE(s.total_commission, 0) > 0`;
+      sql += dateFilter("s.sale_date", from, to, params);
+      sql += " ORDER BY party ASC, date ASC, s.id ASC";
+      return db.prepare(sql).all(...params) as LedgerRow[];
     } else {
       sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
              COALESCE(sm.name, 'No Salesman') as party,
