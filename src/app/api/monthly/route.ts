@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLedgerRows, LedgerRow } from "@/lib/ledger-rows";
+import { getLedgerRows, LedgerRow, productStockRows } from "@/lib/ledger-rows";
+import { getDb } from "@/lib/db";
 
 type Account = {
   name: string;
@@ -28,6 +29,47 @@ export async function GET(req: NextRequest) {
 
   const from = `${month}-01`;
   const to = `${month}-${String(lastDayOfMonth(month)).padStart(2, "0")}`;
+
+  if (type === "product") {
+    const db = getDb();
+    const products = db
+      .prepare("SELECT id, name, size, stock FROM products WHERE (deleted IS NULL OR deleted = 0)")
+      .all() as Array<{ id: number; name: string; size: string; stock: number }>;
+    const movesMonth = productStockRows(from, to);
+    const movesMap = new Map<string, { debit: number; credit: number; rows: LedgerRow[] }>();
+    for (const r of movesMonth) {
+      let acc = movesMap.get(r.party);
+      if (!acc) {
+        acc = { debit: 0, credit: 0, rows: [] };
+        movesMap.set(r.party, acc);
+      }
+      acc.debit += Number(r.debit) || 0;
+      acc.credit += Number(r.credit) || 0;
+      acc.rows.push(r);
+    }
+    const accounts: Account[] = products
+      .map((p) => {
+        const name = `${p.name} ${p.size}`.trim();
+        const mov = movesMap.get(name);
+        const debit = mov?.debit || 0;
+        const credit = mov?.credit || 0;
+        return {
+          name,
+          opening: (p.stock || 0) - debit + credit,
+          debit,
+          credit,
+          closing: p.stock || 0,
+          rows: mov ? mov.rows.sort((x, y) => (x.date > y.date ? -1 : x.date < y.date ? 1 : Number(y.id) - Number(x.id))) : [],
+        };
+      })
+      .filter((a) => a.debit > 0 || a.credit > 0);
+
+    const t = accounts.reduce(
+      (t, a) => ({ opening: t.opening + a.opening, debit: t.debit + a.debit, credit: t.credit + a.credit, closing: t.closing + a.closing }),
+      { opening: 0, debit: 0, credit: 0, closing: 0 }
+    );
+    return NextResponse.json({ month, type, subType, single: false, accounts, totals: t });
+  }
 
   const single = !(type === "customer" || type === "salesman");
   const rowsAll = getLedgerRows(type, subType, null, null);

@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.17",
+    "version":  "10.3.18",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.17: Commission subtab - big total commission banner + Print Commission button (per-salesman report with subtotals \u0026 grand total).",
+    "notes":  "v10.3.18: General service + monthly for everything - per-product stock tab in Monthly Report; returns now netted in customer \u0026 company ledgers; historical records no longer post to books/balance; fixed stockbook historical+opening, transfer PUT fallbacks, purchase PUT fallbacks, negative-stock clamp on purchase edits/deletes.",
     "updatedAt":  "2026-08-09"
 }

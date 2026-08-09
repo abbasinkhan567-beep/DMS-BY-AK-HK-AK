@@ -57,9 +57,12 @@ export async function GET(req: NextRequest) {
                 COALESCE(si.closing_stock, 0) as closing_stock
          FROM stockbook_items si
          JOIN stockbook sb ON sb.id = si.stockbook_id
-         WHERE sb.book_date < ? AND (sb.deleted IS NULL OR sb.deleted = 0)
-           AND (si.deleted IS NULL OR si.deleted = 0)
-         ORDER BY sb.book_date DESC`
+         WHERE sb.book_date = (
+           SELECT MAX(sb2.book_date) FROM stockbook sb2
+           WHERE sb2.book_date < ? AND (sb2.deleted IS NULL OR sb2.deleted = 0)
+         )
+           AND (sb.deleted IS NULL OR sb.deleted = 0)
+           AND (si.deleted IS NULL OR si.deleted = 0)`
       )
       .all(date) as Array<{ product_id: number; closing_stock: number }>;
 
@@ -74,6 +77,7 @@ export async function GET(req: NextRequest) {
          FROM purchase_items pi
          JOIN purchases p ON p.id = pi.purchase_id
          WHERE p.purchase_date = ? AND (p.deleted IS NULL OR p.deleted = 0)
+           AND COALESCE(p.is_historical, 0) = 0
          GROUP BY pi.product_id`
       )
       .all(date) as Array<{ product_id: number; qty: number }>;

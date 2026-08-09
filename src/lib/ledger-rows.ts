@@ -27,6 +27,79 @@ export function dateFilter(column: string, from: string | null, to: string | nul
   return sql;
 }
 
+export function productStockRows(from: string | null, to: string | null): LedgerRow[] {
+  const db = getDb();
+  const params: string[] = [];
+  const sql = `
+    SELECT p.id as id, p.purchase_date as date, COALESCE(p.invoice_no, 'PUR-' || p.id) as ref,
+           pr.name || ' ' || pr.size as party,
+           pi.quantity as debit, 0 as credit,
+           'Purchase IN' as source, 'Stock from company' as notes, NULL as sub_type, 0 as manual
+    FROM purchase_items pi
+    JOIN purchases p ON p.id = pi.purchase_id
+    JOIN products pr ON pr.id = pi.product_id
+    WHERE (pi.deleted IS NULL OR pi.deleted = 0) AND (p.deleted IS NULL OR p.deleted = 0)
+      AND (pr.deleted IS NULL OR pr.deleted = 0) AND COALESCE(p.is_historical, 0) = 0
+    ${dateFilter("p.purchase_date", from, to, params)}
+
+    UNION ALL
+
+    SELECT s.id, s.sale_date as date, COALESCE(s.invoice_no, 'SL-' || s.id) as ref,
+           pr.name || ' ' || pr.size as party,
+           0 as debit, si.quantity as credit,
+           'Sale OUT' as source, COALESCE(c.shop_name, c.name) || ' | ' || COALESCE(sm.name, '-') as notes, NULL as sub_type, 0 as manual
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    JOIN products pr ON pr.id = si.product_id
+    JOIN customers c ON c.id = s.customer_id
+    LEFT JOIN salesmen sm ON sm.id = s.salesman_id
+    WHERE (si.deleted IS NULL OR si.deleted = 0) AND (s.deleted IS NULL OR s.deleted = 0)
+      AND (pr.deleted IS NULL OR pr.deleted = 0) AND COALESCE(s.is_historical, 0) = 0
+    ${dateFilter("s.sale_date", from, to, params)}
+
+    UNION ALL
+
+    SELECT sr.id, sr.return_date as date, 'RET-' || sr.id as ref,
+           pr.name || ' ' || pr.size as party,
+           sr.qty as debit, 0 as credit,
+           'Sale Return IN' as source, 'Returned goods' as notes, NULL as sub_type, 0 as manual
+    FROM sales_returns sr
+    JOIN products pr ON pr.id = sr.product_id
+    JOIN sales s ON s.id = sr.sale_id
+    WHERE (sr.deleted IS NULL OR sr.deleted = 0) AND (s.deleted IS NULL OR s.deleted = 0)
+      AND (pr.deleted IS NULL OR pr.deleted = 0) AND COALESCE(s.is_historical, 0) = 0
+    ${dateFilter("sr.return_date", from, to, params)}
+
+    UNION ALL
+
+    SELECT pr2.id, pr2.return_date as date, 'PRET-' || pr2.id as ref,
+           pro.name || ' ' || pro.size as party,
+           0 as debit, pr2.qty as credit,
+           'Purchase Return OUT' as source, 'Goods to company' as notes, NULL as sub_type, 0 as manual
+    FROM purchase_returns pr2
+    JOIN products pro ON pro.id = pr2.product_id
+    JOIN purchases p ON p.id = pr2.purchase_id
+    WHERE (pr2.deleted IS NULL OR pr2.deleted = 0) AND (p.deleted IS NULL OR p.deleted = 0)
+      AND (pro.deleted IS NULL OR pro.deleted = 0) AND COALESCE(p.is_historical, 0) = 0
+    ${dateFilter("pr2.return_date", from, to, params)}
+
+    UNION ALL
+
+    SELECT sa.id, sa.adjust_date as date, COALESCE(sa.reason, 'Adjust') as ref,
+           pr.name || ' ' || pr.size as party,
+           CASE WHEN sa.difference > 0 THEN sa.difference ELSE 0 END as debit,
+           CASE WHEN sa.difference < 0 THEN ABS(sa.difference) ELSE 0 END as credit,
+           'Adjustment' as source, COALESCE(sa.notes, '') as notes, NULL as sub_type, 0 as manual
+    FROM stock_adjustments sa
+    JOIN products pr ON pr.id = sa.product_id
+    WHERE (sa.deleted IS NULL OR sa.deleted = 0) AND (pr.deleted IS NULL OR pr.deleted = 0)
+    ${dateFilter("sa.adjust_date", from, to, params)}
+
+    ORDER BY date DESC, id DESC
+  `;
+  return db.prepare(sql).all(...params) as LedgerRow[];
+}
+
 export function getLedgerRows(
   type: string,
   subType: string,
@@ -60,8 +133,16 @@ export function getLedgerRows(
              FROM purchases WHERE (deleted IS NULL OR deleted = 0) AND paid_amount > 0`;
     } else {
       sql = `SELECT id, purchase_date as date, invoice_no as ref, COALESCE(company_name, supplier) as party,
-             total_amount as debit, paid_amount as credit, 'Purchase' as source,
-             CAST(COALESCE(total_expense, 0) as TEXT) as notes, NULL as sub_type, 0 as manual
+             COALESCE(total_amount, 0) - COALESCE((
+               SELECT SUM(pr.qty * pr.rate) FROM purchase_returns pr
+               WHERE pr.purchase_id = purchases.id AND (pr.deleted IS NULL OR pr.deleted = 0)
+             ), 0) as debit,
+             paid_amount as credit, 'Purchase' as source,
+             CAST(COALESCE(total_expense, 0) as TEXT) || COALESCE((
+               SELECT ' | Returns: ' || printf('%.2f', SUM(pr.qty * pr.rate)) FROM purchase_returns pr
+               WHERE pr.purchase_id = purchases.id AND (pr.deleted IS NULL OR pr.deleted = 0)
+               HAVING SUM(pr.qty * pr.rate) > 0
+             ), '') as notes, NULL as sub_type, 0 as manual
              FROM purchases WHERE (deleted IS NULL OR deleted = 0)
              AND NOT EXISTS (
                SELECT 1 FROM manual_ledger_entries m
@@ -234,12 +315,20 @@ export function getLedgerRows(
     const params: string[] = [];
     let sql = `SELECT s.id, s.sale_date as date, s.invoice_no as ref,
                COALESCE(c.shop_name, c.name) as party,
-               s.total_amount as debit,
+               COALESCE(s.total_amount, 0) - COALESCE((
+                 SELECT SUM(sr.qty * sr.rate) FROM sales_returns sr
+                 WHERE sr.sale_id = s.id AND (sr.deleted IS NULL OR sr.deleted = 0)
+               ), 0) as debit,
                s.paid_amount as credit,
                'Sale' as source,
                'Bakaya: ' || printf('%.2f', COALESCE(s.bill_bakaya, 0)) ||
                ' | Disc: ' || printf('%.2f', COALESCE(s.total_discount, 0)) ||
-               ' | Empty: ' || printf('%.2f', COALESCE(s.empty_qty, 0)) as notes, NULL as sub_type, 0 as manual
+               ' | Empty: ' || printf('%.2f', COALESCE(s.empty_qty, 0)) ||
+               COALESCE((
+                 SELECT ' | Returns: ' || printf('%.2f', SUM(sr.qty * sr.rate)) FROM sales_returns sr
+                 WHERE sr.sale_id = s.id AND (sr.deleted IS NULL OR sr.deleted = 0)
+                 HAVING SUM(sr.qty * sr.rate) > 0
+               ), '') as notes, NULL as sub_type, 0 as manual
                FROM sales s
                JOIN customers c ON c.id = s.customer_id
                WHERE (s.deleted IS NULL OR s.deleted = 0) AND (c.deleted IS NULL OR c.deleted = 0)

@@ -176,6 +176,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!isHistorical) {
     const entries = buildPurchaseAutoEntries({
       supplierName: company_name || supplier,
       totalAmount: total_amount,
@@ -228,6 +229,7 @@ export async function POST(req: NextRequest) {
         ledgerEntry.sub_type || null
       );
     }
+    }
 
     return purchaseId;
   });
@@ -268,8 +270,8 @@ export async function PUT(req: NextRequest) {
 
   try {
     const tx = db.transaction(() => {
-      const old = db.prepare("SELECT is_historical, invoice_no FROM purchases WHERE id = ?").get(id) as
-        | { is_historical: number; invoice_no: string | null }
+      const old = db.prepare("SELECT is_historical, invoice_no, company_name FROM purchases WHERE id = ?").get(id) as
+        | { is_historical: number; invoice_no: string | null; company_name: string | null }
         | undefined;
       if (!old) throw new Error("Purchase not found");
       const oldRef = old.invoice_no || `#${id}`;
@@ -280,8 +282,8 @@ export async function PUT(req: NextRequest) {
       if (!old.is_historical) {
         for (const item of oldItems) {
           db.prepare(
-            "UPDATE products SET stock = CASE WHEN stock >= ? THEN stock - ? ELSE 0 END WHERE id = ?"
-          ).run(item.quantity, item.quantity, item.product_id);
+            "UPDATE products SET stock = COALESCE(stock, 0) - ? WHERE id = ?"
+          ).run(item.quantity, item.product_id);
         }
       }
       for (const item of oldItems) {
@@ -303,9 +305,9 @@ export async function PUT(req: NextRequest) {
          WHERE id=?`
       ).run(
         invoice_no || null,
-        supplier,
-        company_name || supplier,
-        purchase_date,
+        supplier || company_name || old.company_name || "Pepsi Company",
+        company_name || supplier || old.company_name || "Pepsi Company",
+        purchase_date || todayLocal(),
         total_amount,
         paid_amount || 0,
         notes || null,
@@ -356,6 +358,7 @@ export async function PUT(req: NextRequest) {
       reverseGeneralEntries(db, oldRef);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source IN (?, ?)").run(oldRef, "Purchase", "Purchase Expense");
 
+      if (!isHistorical) {
       const entries = buildPurchaseAutoEntries({
         supplierName: company_name || supplier || "Supplier",
         totalAmount: items.reduce((sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate, 0),
@@ -378,14 +381,14 @@ export async function PUT(req: NextRequest) {
           db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
           db.prepare(
             "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-          ).run(purchase_date, accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+          ).run(purchase_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
         }
       }
 
       const ledgerEntries = buildPurchaseLedgerAutoEntries({
         purchaseId: Number(id),
         invoiceNo: invoice_no || `#${id}`,
-        entryDate: purchase_date,
+        entryDate: purchase_date || todayLocal(),
         party: company_name || supplier || "Supplier",
         totalAmount: items.reduce((sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate, 0),
         paidAmount: paid_amount || 0,
@@ -407,6 +410,7 @@ export async function PUT(req: NextRequest) {
           ledgerEntry.sub_type || null
         );
       }
+    }
     });
     tx();
     return NextResponse.json(db.prepare("SELECT * FROM purchases WHERE id = ?").get(id));
@@ -433,8 +437,8 @@ export async function DELETE(req: NextRequest) {
       if (!purchase.is_historical) {
         for (const item of items) {
           db.prepare(
-            "UPDATE products SET stock = CASE WHEN stock >= ? THEN stock - ? ELSE 0 END WHERE id = ?"
-          ).run(item.quantity, item.quantity, item.product_id);
+            "UPDATE products SET stock = COALESCE(stock, 0) - ? WHERE id = ?"
+          ).run(item.quantity, item.product_id);
         }
       }
 

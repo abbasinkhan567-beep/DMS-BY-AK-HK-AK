@@ -39,6 +39,7 @@ const tabs = [
   { key: "salesman", label: "Salesmen" },
   { key: "company", label: "Company" },
   { key: "expense", label: "Expenses" },
+  { key: "product", label: "Products" },
   { key: "floor", label: "Floor Stock" },
 ];
 

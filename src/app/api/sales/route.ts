@@ -215,10 +215,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (bakaya !== 0) {
+      if (!isHistorical && bakaya !== 0) {
         db.prepare("UPDATE customers SET balance = balance + ? WHERE id = ?").run(bakaya, customer_id);
       }
 
+      if (!isHistorical) {
       const customer = db.prepare("SELECT name FROM customers WHERE id = ?").get(customer_id) as { name: string } | undefined;
       const accountName = customer?.name || "Customer";
       const entries = buildSaleAutoEntries({
@@ -270,6 +271,7 @@ export async function POST(req: NextRequest) {
           ledgerEntry.notes,
           ledgerEntry.sub_type || null
         );
+      }
       }
 
       return saleId;
@@ -396,9 +398,9 @@ export async function PUT(req: NextRequest) {
          WHERE id=?`
       ).run(
         invoice_no || null,
-        customer_id,
+        customer_id || old.customer_id,
         salesman_id || null,
-        sale_date,
+        sale_date || todayLocal(),
         total_amount,
         paid,
         payment_type,
@@ -464,6 +466,7 @@ export async function PUT(req: NextRequest) {
             reverseGeneralEntries(db, oldRef);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(oldRef, "Sale");
 
+      if (!isHistorical) {
       for (const entry of entries) {
         const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
         if (!account) {
@@ -476,14 +479,14 @@ export async function PUT(req: NextRequest) {
           db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
           db.prepare(
             "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-          ).run(sale_date, accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+          ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
         }
       }
 
       const ledgerEntries = buildSaleLedgerAutoEntries({
         saleId: Number(id),
         invoiceNo: invoice_no || `#${id}`,
-        entryDate: sale_date,
+        entryDate: sale_date || todayLocal(),
         party: customer?.name || "Customer",
         totalAmount: total_amount,
         paidAmount: paid,
@@ -503,6 +506,7 @@ export async function PUT(req: NextRequest) {
           ledgerEntry.notes,
           ledgerEntry.sub_type || null
         );
+      }
       }
     });
     tx();

@@ -23,6 +23,22 @@ function makeDb() {
       debit REAL DEFAULT 0, credit REAL DEFAULT 0,
       source TEXT, notes TEXT, sub_type TEXT, deleted INTEGER DEFAULT 0
     );
+    CREATE TABLE sales (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_no TEXT, sale_date TEXT, total_amount REAL, paid_amount REAL,
+      bill_bakaya REAL DEFAULT 0, total_discount REAL DEFAULT 0, empty_qty REAL DEFAULT 0,
+      is_historical INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0
+    );
+    CREATE TABLE sales_returns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id INTEGER, product_id INTEGER, qty REAL, rate REAL DEFAULT 0,
+      return_date TEXT, deleted INTEGER DEFAULT 0
+    );
+    CREATE TABLE purchase_returns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_id INTEGER, product_id INTEGER, qty REAL, rate REAL DEFAULT 0,
+      return_date TEXT, deleted INTEGER DEFAULT 0
+    );
   `);
   // old purchase (pre-manual-ledger era) - must come from the purchases branch
   db.prepare(

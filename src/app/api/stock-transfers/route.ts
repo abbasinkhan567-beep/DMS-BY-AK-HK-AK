@@ -35,9 +35,6 @@ export async function POST(req: NextRequest) {
     | { stock: number; location: string }
     | undefined;
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  if (product.stock < quantity) {
-    return NextResponse.json({ error: `Insufficient stock (available: ${product.stock})` }, { status: 400 });
-  }
 
   const tx = db.transaction(() => {
     const result = db
@@ -70,28 +67,40 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const body = await req.json();
-  const { id, transfer_date, from_location, to_location, notes } = body;
-  if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
-  const db = getDb();
-  const existing = db
-    .prepare(`SELECT product_id FROM stock_transfers WHERE id = ? AND (deleted IS NULL OR deleted = 0)`)
-    .get(id) as { product_id: number } | undefined;
-  if (!existing) return NextResponse.json({ error: "Transfer not found" }, { status: 404 });
-  db.prepare(
-    `UPDATE stock_transfers SET transfer_date=?, from_location=?, to_location=?, notes=? WHERE id=?`
-  ).run(transfer_date, from_location, to_location, notes || null, id);
-  if (to_location) {
-    db.prepare("UPDATE products SET location = ? WHERE id = ?").run(to_location, existing.product_id);
+  try {
+    const body = await req.json();
+    const { id, transfer_date, from_location, to_location, notes } = body;
+    if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+    const db = getDb();
+    const existing = db
+      .prepare(`SELECT product_id, from_location, to_location, transfer_date FROM stock_transfers WHERE id = ? AND (deleted IS NULL OR deleted = 0)`)
+      .get(id) as
+      | { product_id: number; from_location: string; to_location: string; transfer_date: string }
+      | undefined;
+    if (!existing) return NextResponse.json({ error: "Transfer not found" }, { status: 404 });
+    db.prepare(
+      `UPDATE stock_transfers SET transfer_date=?, from_location=?, to_location=?, notes=? WHERE id=?`
+    ).run(
+      transfer_date || existing.transfer_date || todayLocal(),
+      from_location || existing.from_location,
+      to_location || existing.to_location,
+      notes || null,
+      id
+    );
+    if (to_location) {
+      db.prepare("UPDATE products SET location = ? WHERE id = ?").run(to_location, existing.product_id);
+    }
+    return NextResponse.json(
+      db
+        .prepare(
+          `SELECT st.*, p.name as product_name, p.size as product_size
+           FROM stock_transfers st JOIN products p ON p.id = st.product_id WHERE st.id = ?`
+        )
+        .get(id)
+    );
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
-  return NextResponse.json(
-    db
-      .prepare(
-        `SELECT st.*, p.name as product_name, p.size as product_size
-         FROM stock_transfers st JOIN products p ON p.id = st.product_id WHERE st.id = ?`
-      )
-      .get(id)
-  );
 }
 
 export async function DELETE(req: NextRequest) {
