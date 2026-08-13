@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.19",
+    "version":  "10.3.20",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.19: Add Line button moved below the product lines in Sales & Purchase forms so no scrolling up needed to add more lines.",
+    "notes":  "v10.3.20: Add Return button also moved below the returned-goods lines in Sales & Purchase forms (same as Add Line).",
     "updatedAt":  "2026-08-13"
 }

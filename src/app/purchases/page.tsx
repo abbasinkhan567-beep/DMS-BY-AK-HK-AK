@@ -564,19 +564,9 @@ export default function PurchasesPage() {
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Returned Goods (Optional)
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="!py-1.5 !text-xs"
-                onClick={() => setFormReturns([...formReturns, { product_id: 0, qty: 0, rate: 0 }])}
-              >
-                + Add Return
-              </Button>
-            </div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Returned Goods (Optional)
+            </p>
             {formReturns.map((r, index) => (
               <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
                 <div className="grid gap-2 sm:grid-cols-12">
@@ -652,6 +642,14 @@ export default function PurchasesPage() {
                 </div>
               </div>
             ))}
+            <Button
+              type="button"
+              variant="secondary"
+              className="!py-1.5 !text-xs"
+              onClick={() => setFormReturns([...formReturns, { product_id: 0, qty: 0, rate: 0 }])}
+            >
+              + Add Return
+            </Button>
           </div>
 
           <TextArea
