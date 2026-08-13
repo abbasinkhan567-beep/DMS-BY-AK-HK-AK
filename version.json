@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.20",
+    "version":  "10.3.21",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.20: Add Return button also moved below the returned-goods lines in Sales & Purchase forms (same as Add Line).",
+    "notes":  "v10.3.21: Sales line now shows a Total box (qty x rate) before Comm/unit per product.",
     "updatedAt":  "2026-08-13"
 }

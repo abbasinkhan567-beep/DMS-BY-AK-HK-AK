@@ -623,7 +623,7 @@ export default function SalesPage() {
             {items.map((item, index) => (
               <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
                 <div className="grid gap-2 sm:grid-cols-12">
-                  <div className="sm:col-span-4">
+                  <div className="sm:col-span-2">
                     <Select
                       label="Product Name"
                       value={item.product_id || ""}
@@ -654,6 +654,16 @@ export default function SalesPage() {
                       step="any"
                       value={item.unit_price}
                       onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="Total"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={(Number(item.quantity) || 0) * (Number(item.unit_price) || 0)}
+                      readOnly
                     />
                   </div>
                   <div className="sm:col-span-2">
