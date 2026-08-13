@@ -471,17 +471,7 @@ export default function PurchasesPage() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items</p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="!py-1.5 !text-xs"
-                onClick={() => setItems([...items, { ...emptyLine(), company_name: form.company_name }])}
-              >
-                + Add Line
-              </Button>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items</p>
             {items.map((item, index) => (
               <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -563,6 +553,14 @@ export default function PurchasesPage() {
                 </div>
               </div>
             ))}
+            <Button
+              type="button"
+              variant="secondary"
+              className="!py-1.5 !text-xs"
+              onClick={() => setItems([...items, { ...emptyLine(), company_name: form.company_name }])}
+            >
+              + Add Line
+            </Button>
           </div>
 
           <div>

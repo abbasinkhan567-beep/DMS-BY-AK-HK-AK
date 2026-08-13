@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.18",
+    "version":  "10.3.19",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.18: General service + monthly for everything - per-product stock tab in Monthly Report; returns now netted in customer \u0026 company ledgers; historical records no longer post to books/balance; fixed stockbook historical+opening, transfer PUT fallbacks, purchase PUT fallbacks, negative-stock clamp on purchase edits/deletes.",
-    "updatedAt":  "2026-08-09"
+    "notes":  "v10.3.19: Add Line button moved below the product lines in Sales & Purchase forms so no scrolling up needed to add more lines.",
+    "updatedAt":  "2026-08-13"
 }
