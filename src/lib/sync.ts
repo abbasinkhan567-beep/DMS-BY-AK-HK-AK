@@ -217,21 +217,29 @@ function pushLocalDb(origin: string, meta: SyncMeta): void {
 }
 
 function withSyncLock<T>(fn: () => T): T {
-  if (fs.existsSync(SYNC_LOCK)) {
-    const age = Date.now() - fs.statSync(SYNC_LOCK).mtimeMs;
-    if (age < 3 * 60 * 1000) {
-      throw new Error("Sync already running on this PC — try again in a minute.");
-    }
-  }
-  fs.writeFileSync(SYNC_LOCK, String(Date.now()), "utf8");
+  const lockFd = fs.openSync(SYNC_LOCK, "wx");
   try {
-    return fn();
-  } finally {
+    fs.writeSync(lockFd, String(Date.now()));
+    fs.closeSync(lockFd);
     try {
-      fs.unlinkSync(SYNC_LOCK);
-    } catch {
-      /* ignore */
+      return fn();
+    } finally {
+      try {
+        fs.unlinkSync(SYNC_LOCK);
+      } catch {
+        /* ignore */
+      }
     }
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "EEXIST") {
+      const age = Date.now() - fs.statSync(SYNC_LOCK).mtimeMs;
+      if (age < 3 * 60 * 1000) {
+        throw new Error("Sync already running on this PC — try again in a minute.");
+      }
+      fs.unlinkSync(SYNC_LOCK);
+      return withSyncLock(fn);
+    }
+    throw e;
   }
 }
 

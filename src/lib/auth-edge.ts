@@ -4,7 +4,11 @@ export const SESSION_COOKIE = "pepsi_session";
 export const SESSION_DAYS = 14;
 
 export function authSecret() {
-  return process.env.PEPSI_AUTH_SECRET || "pepsi-distribution-office-session-v1";
+  const secret = process.env.PEPSI_AUTH_SECRET;
+  if (!secret) {
+    throw new Error("PEPSI_AUTH_SECRET environment variable is required. Set a strong random secret.");
+  }
+  return secret;
 }
 
 function base64UrlEncode(data: ArrayBuffer | Uint8Array): string {

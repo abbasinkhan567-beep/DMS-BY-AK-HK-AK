@@ -51,6 +51,17 @@ function newer(a?: string | null, b?: string | null) {
 }
 
 function cols(db: PepsiDb, table: string) {
+  const allowed = new Set([
+    "products", "customers", "salesmen", "purchases", "purchase_items",
+    "sales", "sale_items", "expenses", "accounts", "general_entries",
+    "stock_transfers", "stock_adjustments", "floors", "paper_days",
+    "manual_ledger_entries", "stockbook", "stockbook_items", "stockbook_sales",
+    "sales_returns", "purchase_returns", "company_info", "app_settings",
+    "deleted_records",
+  ]);
+  if (!allowed.has(table)) {
+    throw new Error(`Invalid table name: ${table}`);
+  }
   return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
     (c) => c.name
   );
@@ -637,7 +648,7 @@ function mergePurchases(
           row.expense3_label ?? null,
           row.expense3_amount ?? 0,
           row.total_expense ?? 0,
-          row.updated_at,
+          new Date().toISOString(),
           existing.id
         );
       syncPurchaseItems(local, remote, existing.id, Number(row.id));
@@ -744,7 +755,7 @@ function mergeSales(
           row.total_bill_expense ?? 0,
           row.notes ?? null,
           row.is_historical ?? 0,
-          row.updated_at,
+          new Date().toISOString(),
           existing.id
         );
       syncSaleItems(local, remote, existing.id, Number(row.id));
@@ -810,7 +821,7 @@ function mergeSimpleTx(
         )
         .run(
           ...unique.map((f) => (f in extras ? extras[f] : row[f] ?? null)),
-          row.updated_at,
+          new Date().toISOString(),
           existing.id
         );
       updated++;
@@ -857,7 +868,7 @@ function mergePaperDays(
           .prepare(
             `UPDATE paper_days SET notes=?, status=?, sync_id=?, updated_at=? WHERE entry_date=?`
           )
-          .run(row.notes ?? null, row.status, syncId, row.updated_at, row.entry_date);
+          .run(row.notes ?? null, row.status, syncId, row.updated_at || new Date().toISOString(), row.entry_date);
         updated++;
       }
     } else if (Number(existing.deleted) === 1) {
@@ -867,12 +878,12 @@ function mergePaperDays(
         existing.status === "done" || row.status === "done" ? "done" : row.status || existing.status;
       local
         .prepare(`UPDATE paper_days SET notes=?, status=?, updated_at=? WHERE id=?`)
-        .run(row.notes ?? null, status, row.updated_at, existing.id);
+        .run(row.notes ?? null, status, new Date().toISOString(), existing.id);
       updated++;
     } else if (row.status === "done" && existing.status !== "done") {
       local
         .prepare(`UPDATE paper_days SET status='done', updated_at=? WHERE id=?`)
-        .run(row.updated_at || new Date().toISOString(), existing.id);
+        .run(new Date().toISOString(), existing.id);
       updated++;
     }
   }
@@ -988,7 +999,7 @@ function mergeStockbook(
     } else if (newer(String(row.updated_at || ""), existing.updated_at)) {
       local
         .prepare(`UPDATE stockbook SET book_date=?, note=?, updated_at=? WHERE id=?`)
-        .run(row.book_date, row.note ?? null, row.updated_at, existing.id);
+        .run(row.book_date, row.note ?? null, new Date().toISOString(), existing.id);
       insertItems(existing.id, Number(row.id));
       updated++;
     }
@@ -1078,7 +1089,7 @@ function mergeCompany(
         remoteRow.ntn,
         remoteRow.owner_name,
         remoteRow.logo_note,
-        remoteRow.updated_at
+        new Date().toISOString()
       );
     onUpdated(1);
   }

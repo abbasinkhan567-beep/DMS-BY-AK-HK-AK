@@ -215,63 +215,63 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (!isHistorical && bakaya !== 0) {
-        db.prepare("UPDATE customers SET balance = balance + ? WHERE id = ?").run(bakaya, customer_id);
-      }
-
       if (!isHistorical) {
-      const customer = db.prepare("SELECT name FROM customers WHERE id = ?").get(customer_id) as { name: string } | undefined;
-      const accountName = customer?.name || "Customer";
-      const entries = buildSaleAutoEntries({
-        customerName: accountName,
-        totalAmount: total_amount,
-        paidAmount: paid,
-        paymentType: payment_type,
-        bankAccountName: bank_account || "Main Bank",
-        invoiceNo: invoice_no || `#${saleId}`,
-      });
-
-      for (const entry of entries) {
-        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
-        if (!account) {
-          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
-          insertAccount.run(entry.accountName);
+        if (bakaya !== 0) {
+          db.prepare("UPDATE customers SET balance = balance + ? WHERE id = ?").run(bakaya, customer_id);
         }
-        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
-        if (accountId) {
-          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
-          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+
+        const customer = db.prepare("SELECT name FROM customers WHERE id = ?").get(customer_id) as { name: string } | undefined;
+        const accountName = customer?.name || "Customer";
+        const entries = buildSaleAutoEntries({
+          customerName: accountName,
+          totalAmount: total_amount,
+          paidAmount: paid,
+          paymentType: payment_type,
+          bankAccountName: bank_account || "Main Bank",
+          invoiceNo: invoice_no || `#${saleId}`,
+        });
+
+        for (const entry of entries) {
+          const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+          if (!account) {
+            const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+            insertAccount.run(entry.accountName);
+          }
+          const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+          if (accountId) {
+            const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+            db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+            db.prepare(
+              "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+            ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${saleId}`);
+          }
+        }
+
+        const saleIdNumber = Number(saleId);
+        const ledgerEntries = buildSaleLedgerAutoEntries({
+          saleId: saleIdNumber,
+          invoiceNo: invoice_no || `#${saleIdNumber}`,
+          entryDate: sale_date || todayLocal(),
+          party: customer?.name || "Customer",
+          totalAmount: total_amount,
+          paidAmount: paid,
+        });
+        for (const ledgerEntry of ledgerEntries) {
           db.prepare(
-            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-          ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${saleId}`);
+            `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            ledgerEntry.ledger_type,
+            ledgerEntry.entry_date,
+            ledgerEntry.ref,
+            ledgerEntry.party,
+            ledgerEntry.debit,
+            ledgerEntry.credit,
+            ledgerEntry.source,
+            ledgerEntry.notes,
+            ledgerEntry.sub_type || null
+          );
         }
-      }
-
-      const saleIdNumber = Number(saleId);
-      const ledgerEntries = buildSaleLedgerAutoEntries({
-        saleId: saleIdNumber,
-        invoiceNo: invoice_no || `#${saleIdNumber}`,
-        entryDate: sale_date || todayLocal(),
-        party: customer?.name || "Customer",
-        totalAmount: total_amount,
-        paidAmount: paid,
-      });
-      for (const ledgerEntry of ledgerEntries) {
-        db.prepare(
-          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          ledgerEntry.ledger_type,
-          ledgerEntry.entry_date,
-          ledgerEntry.ref,
-          ledgerEntry.party,
-          ledgerEntry.debit,
-          ledgerEntry.credit,
-          ledgerEntry.source,
-          ledgerEntry.notes,
-          ledgerEntry.sub_type || null
-        );
-      }
       }
 
       return saleId;
@@ -463,50 +463,50 @@ export async function PUT(req: NextRequest) {
         invoiceNo: invoice_no || `#${id}`,
       });
 
-            reverseGeneralEntries(db, oldRef);
-      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(oldRef, "Sale");
+            if (!isHistorical) {
+        reverseGeneralEntries(db, oldRef);
+        db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(oldRef, "Sale");
 
-      if (!isHistorical) {
-      for (const entry of entries) {
-        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
-        if (!account) {
-          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
-          insertAccount.run(entry.accountName);
+        for (const entry of entries) {
+          const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+          if (!account) {
+            const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+            insertAccount.run(entry.accountName);
+          }
+          const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+          if (accountId) {
+            const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+            db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+            db.prepare(
+              "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+            ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+          }
         }
-        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
-        if (accountId) {
-          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
-          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+
+        const ledgerEntries = buildSaleLedgerAutoEntries({
+          saleId: Number(id),
+          invoiceNo: invoice_no || `#${id}`,
+          entryDate: sale_date || todayLocal(),
+          party: customer?.name || "Customer",
+          totalAmount: total_amount,
+          paidAmount: paid,
+        });
+        for (const ledgerEntry of ledgerEntries) {
           db.prepare(
-            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-          ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+            `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            ledgerEntry.ledger_type,
+            ledgerEntry.entry_date,
+            ledgerEntry.ref,
+            ledgerEntry.party,
+            ledgerEntry.debit,
+            ledgerEntry.credit,
+            ledgerEntry.source,
+            ledgerEntry.notes,
+            ledgerEntry.sub_type || null
+          );
         }
-      }
-
-      const ledgerEntries = buildSaleLedgerAutoEntries({
-        saleId: Number(id),
-        invoiceNo: invoice_no || `#${id}`,
-        entryDate: sale_date || todayLocal(),
-        party: customer?.name || "Customer",
-        totalAmount: total_amount,
-        paidAmount: paid,
-      });
-      for (const ledgerEntry of ledgerEntries) {
-        db.prepare(
-          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          ledgerEntry.ledger_type,
-          ledgerEntry.entry_date,
-          ledgerEntry.ref,
-          ledgerEntry.party,
-          ledgerEntry.debit,
-          ledgerEntry.credit,
-          ledgerEntry.source,
-          ledgerEntry.notes,
-          ledgerEntry.sub_type || null
-        );
-      }
       }
     });
     tx();
@@ -543,24 +543,26 @@ export async function DELETE(req: NextRequest) {
         }
       }
 
-      const due = sale.bill_bakaya ?? sale.total_amount - sale.paid_amount;
+      const due = sale.bill_bakaya ?? (sale.total_amount - sale.paid_amount);
       if (!sale.is_historical && due !== 0) {
         db.prepare("UPDATE customers SET balance = balance - ? WHERE id = ?").run(due, sale.customer_id);
       }
 
-      const saleRow = db.prepare("SELECT invoice_no FROM sales WHERE id = ?").get(id) as
-        | { invoice_no: string | null }
-        | undefined;
-      const ref = saleRow?.invoice_no || `#${id}`;
-      reverseGeneralEntries(db, ref);
-      db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(ref, "Sale");
+      if (!sale.is_historical) {
+        const saleRow = db.prepare("SELECT invoice_no FROM sales WHERE id = ?").get(id) as
+          | { invoice_no: string | null }
+          | undefined;
+        const ref = saleRow?.invoice_no || `#${id}`;
+        reverseGeneralEntries(db, ref);
+        db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(ref, "Sale");
+      }
 
       const returns = db
         .prepare("SELECT sync_id, product_id, qty FROM sales_returns WHERE sale_id = ? AND (deleted IS NULL OR deleted = 0)")
         .all(id) as Array<{ sync_id: string | null; product_id: number; qty: number }>;
       if (!sale.is_historical) {
         for (const ret of returns) {
-          db.prepare("UPDATE products SET stock = COALESCE(stock, 0) - ? WHERE id = ?").run(ret.qty, ret.product_id);
+          db.prepare("UPDATE products SET stock = COALESCE(stock, 0) + ? WHERE id = ?").run(ret.qty, ret.product_id);
         }
       }
       for (const ret of returns) {

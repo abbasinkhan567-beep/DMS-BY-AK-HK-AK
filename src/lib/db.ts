@@ -13,12 +13,58 @@ export const dbPath = path.join(dataDir, "pepsi.db");
 
 const globalForDb = globalThis as unknown as { __pepsiDb?: PepsiDb };
 
+const ALLOWED_TABLES = new Set([
+  "products", "customers", "salesmen", "purchases", "purchase_items",
+  "sales", "sale_items", "expenses", "accounts", "general_entries",
+  "stock_transfers", "stock_adjustments", "floors", "paper_days",
+  "manual_ledger_entries", "stockbook", "stockbook_items", "stockbook_sales",
+  "sales_returns", "purchase_returns", "company_info", "app_settings",
+  "deleted_records",
+]);
+
+const ALLOWED_COLUMNS = new Set([
+  "id", "name", "size", "unit", "purchase_price", "sale_price", "stock", "min_stock", "location", "created_at", "deleted", "sync_id", "updated_at",
+  "shop_name", "phone", "address", "area", "balance", "notes",
+  "salary", "status",
+  "invoice_no", "supplier", "company_name", "purchase_date", "total_amount", "paid_amount", "is_historical", "expense1_label", "expense1_amount", "expense2_label", "expense2_amount", "expense3_label", "expense3_amount", "total_expense",
+  "product_id", "product_name", "quantity", "hand_to_hand", "conditional", "rate_per_cotton", "unit_price", "total_rate", "total", "commission", "discount", "commission_rate", "discount_rate",
+  "customer_id", "salesman_id", "sale_date", "payment_type", "bill_bakaya", "empty_qty", "bank_account", "total_commission", "total_discount", "total_bill_expense",
+  "expense_date", "category", "title", "amount", "paid_from", "salesman_id",
+  "account_type", "opening_balance",
+  "entry_date", "entry_type", "narration", "ref_no",
+  "transfer_date", "from_location", "to_location",
+  "adjust_date", "old_qty", "new_qty", "difference", "reason",
+  "book_date", "note",
+  "opening_stock", "floor_stock", "stock_from_company", "closing_stock",
+  "salesman_id", "qty",
+  "return_date", "rate",
+  "ledger_type", "ref", "party", "debit", "credit", "source", "sub_type",
+  "city", "ntn", "owner_name", "logo_note",
+  "key", "value",
+]);
+
+function validateTable(table: string): void {
+  if (!ALLOWED_TABLES.has(table)) {
+    throw new Error(`Invalid table name: ${table}`);
+  }
+}
+
+function validateColumn(column: string): void {
+  if (!ALLOWED_COLUMNS.has(column)) {
+    throw new Error(`Invalid column name: ${column}`);
+  }
+}
+
 function columnExists(db: PepsiDb, table: string, column: string) {
+  validateTable(table);
+  validateColumn(column);
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   return cols.some((c) => c.name === column);
 }
 
 function addColumn(db: PepsiDb, table: string, column: string, def: string) {
+  validateTable(table);
+  validateColumn(column);
   if (!columnExists(db, table, column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
   }
