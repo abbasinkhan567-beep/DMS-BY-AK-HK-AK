@@ -187,7 +187,7 @@ export default function SalesPage() {
     return comm;
   }, [items, formReturns]);
   const netCommission = Math.max(0, totalCommission - returnCommission);
-  const grandTotal = itemsSubtotal - totalDiscount + billExpense - returnTotal;
+  const grandTotal = itemsSubtotal - totalDiscount - billExpense - returnTotal;
   const bakaya = Math.max(0, grandTotal - (Number(form.paid_amount) || 0));
 
   function openCreate() {

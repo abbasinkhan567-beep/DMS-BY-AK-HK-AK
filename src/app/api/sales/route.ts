@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { buildSaleAutoEntries } from "@/lib/accounting";
-import { buildSaleLedgerAutoEntries } from "@/lib/ledger-postings";
+import { buildSaleAutoEntries, buildExpenseAutoEntries } from "@/lib/accounting";
+import { buildSaleLedgerAutoEntries, buildExpenseLedgerAutoEntries } from "@/lib/ledger-postings";
 import { todayLocal } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   );
   const total_bill_expense =
     (Number(expense1_amount) || 0) + (Number(expense2_amount) || 0) + (Number(expense3_amount) || 0);
-  const total_amount = itemsSubtotal - total_discount + total_bill_expense;
+  const total_amount = itemsSubtotal - total_discount - total_bill_expense;
   const paid = Number(paid_amount) || 0;
   const bakaya =
     bill_bakaya !== undefined && bill_bakaya !== null
@@ -274,6 +274,83 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Auto-create expense entries in expenses table (for non-historical sales)
+      if (!isHistorical) {
+        const expenseItems = [
+          { label: expense1_label, amount: Number(expense1_amount) || 0 },
+          { label: expense2_label, amount: Number(expense2_amount) || 0 },
+          { label: expense3_label, amount: Number(expense3_amount) || 0 },
+        ].filter((e) => e.label && e.amount > 0);
+
+        for (const exp of expenseItems) {
+          const expResult = db
+            .prepare(
+              `INSERT INTO expenses (expense_date, category, title, amount, paid_from, salesman_id, notes, is_historical)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .run(
+              sale_date || todayLocal(),
+              "Sale Expense",
+              exp.label,
+              exp.amount,
+              "Cash",
+              salesman_id || null,
+              `Auto from sale ${invoice_no || `#${saleId}`}`,
+              0
+            );
+          const expId = Number(expResult.lastInsertRowid);
+
+          // General entries for expense
+          const entries = buildExpenseAutoEntries({
+            title: exp.label || "Expense",
+            amount: exp.amount,
+            paidFrom: "Cash",
+            invoiceNo: `SALE-EXP-${saleId}-${expId}`,
+          });
+          for (const entry of entries) {
+            const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+            if (!account) {
+              const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+              insertAccount.run(entry.accountName);
+            }
+            const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+            if (accountId) {
+              const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+              db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+              db.prepare(
+                "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+              ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, `SALE-EXP-${saleId}-${expId}`);
+            }
+          }
+
+          // Ledger entries for expense
+          const ledgerEntries = buildExpenseLedgerAutoEntries({
+            expenseId: expId,
+            invoiceNo: `SALE-EXP-${saleId}-${expId}`,
+            entryDate: sale_date || todayLocal(),
+            party: exp.label || "Expense",
+            amount: exp.amount,
+            paidFrom: "Cash",
+          });
+          for (const ledgerEntry of ledgerEntries) {
+            db.prepare(
+              `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+              ledgerEntry.ledger_type,
+              ledgerEntry.entry_date,
+              ledgerEntry.ref,
+              ledgerEntry.party,
+              ledgerEntry.debit,
+              ledgerEntry.credit,
+              ledgerEntry.source,
+              ledgerEntry.notes,
+              ledgerEntry.sub_type || null
+            );
+          }
+        }
+      }
+
       return saleId;
     });
 
@@ -383,7 +460,7 @@ export async function PUT(req: NextRequest) {
       );
       const total_bill_expense =
         (Number(expense1_amount) || 0) + (Number(expense2_amount) || 0) + (Number(expense3_amount) || 0);
-      const total_amount = itemsSubtotal - total_discount + total_bill_expense;
+      const total_amount = itemsSubtotal - total_discount - total_bill_expense;
       const paid = Number(paid_amount) || 0;
       const bakaya =
         bill_bakaya !== undefined && bill_bakaya !== null
@@ -508,6 +585,96 @@ export async function PUT(req: NextRequest) {
           );
         }
       }
+
+      // Handle expense entries for PUT (delete old, create new)
+      if (!isHistorical) {
+        // Delete old auto-created expenses for this sale
+        const oldExpenses = db
+          .prepare("SELECT id FROM expenses WHERE notes LIKE ? AND (deleted IS NULL OR deleted = 0)")
+          .all(`Auto from sale ${oldRef}%`) as Array<{ id: number }>;
+        for (const exp of oldExpenses) {
+          // Reverse general entries
+          reverseGeneralEntries(db, `SALE-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ?").run(`SALE-EXP-${id}-${exp.id}`);
+          // Soft delete expense
+          db.prepare("UPDATE expenses SET deleted = 1 WHERE id = ?").run(exp.id);
+        }
+
+        // Create new expense entries
+        const expenseItems = [
+          { label: expense1_label, amount: Number(expense1_amount) || 0 },
+          { label: expense2_label, amount: Number(expense2_amount) || 0 },
+          { label: expense3_label, amount: Number(expense3_amount) || 0 },
+        ].filter((e) => e.label && e.amount > 0);
+
+        for (const exp of expenseItems) {
+          const expResult = db
+            .prepare(
+              `INSERT INTO expenses (expense_date, category, title, amount, paid_from, salesman_id, notes, is_historical)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .run(
+              sale_date || todayLocal(),
+              "Sale Expense",
+              exp.label,
+              exp.amount,
+              "Cash",
+              salesman_id || null,
+              `Auto from sale ${invoice_no || `#${id}`}`,
+              0
+            );
+          const expId = Number(expResult.lastInsertRowid);
+
+          // General entries for expense
+          const entries = buildExpenseAutoEntries({
+            title: exp.label || "Expense",
+            amount: exp.amount,
+            paidFrom: "Cash",
+            invoiceNo: `SALE-EXP-${id}-${expId}`,
+          });
+          for (const entry of entries) {
+            const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+            if (!account) {
+              const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+              insertAccount.run(entry.accountName);
+            }
+            const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+            if (accountId) {
+              const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+              db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+              db.prepare(
+                "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+              ).run(sale_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, `SALE-EXP-${id}-${expId}`);
+            }
+          }
+
+          // Ledger entries for expense
+          const ledgerEntries = buildExpenseLedgerAutoEntries({
+            expenseId: expId,
+            invoiceNo: `SALE-EXP-${id}-${expId}`,
+            entryDate: sale_date || todayLocal(),
+            party: exp.label || "Expense",
+            amount: exp.amount,
+            paidFrom: "Cash",
+          });
+          for (const ledgerEntry of ledgerEntries) {
+            db.prepare(
+              `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+              ledgerEntry.ledger_type,
+              ledgerEntry.entry_date,
+              ledgerEntry.ref,
+              ledgerEntry.party,
+              ledgerEntry.debit,
+              ledgerEntry.credit,
+              ledgerEntry.source,
+              ledgerEntry.notes,
+              ledgerEntry.sub_type || null
+            );
+          }
+        }
+      }
     });
     tx();
     return NextResponse.json(db.prepare("SELECT * FROM sales WHERE id = ?").get(id));
@@ -555,6 +722,16 @@ export async function DELETE(req: NextRequest) {
         const ref = saleRow?.invoice_no || `#${id}`;
         reverseGeneralEntries(db, ref);
         db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source = ?").run(ref, "Sale");
+
+        // Delete auto-created expenses for this sale
+        const oldExpenses = db
+          .prepare("SELECT id FROM expenses WHERE notes LIKE ? AND (deleted IS NULL OR deleted = 0)")
+          .all(`Auto from sale ${ref}%`) as Array<{ id: number }>;
+        for (const exp of oldExpenses) {
+          reverseGeneralEntries(db, `SALE-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ?").run(`SALE-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE expenses SET deleted = 1 WHERE id = ?").run(exp.id);
+        }
       }
 
       const returns = db

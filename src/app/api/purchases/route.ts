@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { buildPurchaseAutoEntries } from "@/lib/accounting";
-import { buildPurchaseLedgerAutoEntries } from "@/lib/ledger-postings";
+import { buildPurchaseAutoEntries, buildExpenseAutoEntries } from "@/lib/accounting";
+import { buildPurchaseLedgerAutoEntries, buildExpenseLedgerAutoEntries } from "@/lib/ledger-postings";
 import { todayLocal } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
   const total_amount = items.reduce((sum, item) => sum + calcItemTotal(item).totalRate, 0);
   const total_expense =
     (Number(expense1_amount) || 0) + (Number(expense2_amount) || 0) + (Number(expense3_amount) || 0);
+  const net_amount = total_amount - total_expense;
 
   const tx = db.transaction(() => {
     const result = db
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
         supplier,
         company_name || supplier,
         purchase_date || todayLocal(),
-        total_amount,
+        net_amount,
         paid_amount,
         notes || null,
         expense1_label || null,
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
     if (!isHistorical) {
     const entries = buildPurchaseAutoEntries({
       supplierName: company_name || supplier,
-      totalAmount: total_amount,
+      totalAmount: net_amount,
       paidAmount: paid_amount,
       expenseAmount: total_expense,
       paymentType: "cash",
@@ -209,7 +210,7 @@ export async function POST(req: NextRequest) {
       invoiceNo: invoice_no || `#${purchaseIdNumber}`,
       entryDate: purchase_date || todayLocal(),
       party: company_name || supplier || "Supplier",
-      totalAmount: total_amount,
+      totalAmount: net_amount,
       paidAmount: paid_amount,
       expenseAmount: total_expense,
     });
@@ -228,6 +229,81 @@ export async function POST(req: NextRequest) {
         ledgerEntry.notes,
         ledgerEntry.sub_type || null
       );
+    }
+
+    // Auto-create expense entries in expenses table
+    const expenseItems = [
+      { label: expense1_label, amount: Number(expense1_amount) || 0 },
+      { label: expense2_label, amount: Number(expense2_amount) || 0 },
+      { label: expense3_label, amount: Number(expense3_amount) || 0 },
+    ].filter((e) => e.label && e.amount > 0);
+
+    for (const exp of expenseItems) {
+      const expResult = db
+        .prepare(
+          `INSERT INTO expenses (expense_date, category, title, amount, paid_from, salesman_id, notes, is_historical)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          purchase_date || todayLocal(),
+          "Purchase Expense",
+          exp.label,
+          exp.amount,
+          "Cash",
+          null,
+          `Auto from purchase ${invoice_no || `#${purchaseId}`}`,
+          0
+        );
+      const expId = Number(expResult.lastInsertRowid);
+
+      // General entries for expense
+      const entries = buildExpenseAutoEntries({
+        title: exp.label || "Expense",
+        amount: exp.amount,
+        paidFrom: "Cash",
+        invoiceNo: `PURCH-EXP-${purchaseId}-${expId}`,
+      });
+      for (const entry of entries) {
+        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+        if (!account) {
+          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+          insertAccount.run(entry.accountName);
+        }
+        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+        if (accountId) {
+          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+          db.prepare(
+            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+          ).run(purchase_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, `PURCH-EXP-${purchaseId}-${expId}`);
+        }
+      }
+
+      // Ledger entries for expense
+      const ledgerEntries = buildExpenseLedgerAutoEntries({
+        expenseId: expId,
+        invoiceNo: `PURCH-EXP-${purchaseId}-${expId}`,
+        entryDate: purchase_date || todayLocal(),
+        party: exp.label || "Expense",
+        amount: exp.amount,
+        paidFrom: "Cash",
+      });
+      for (const ledgerEntry of ledgerEntries) {
+        db.prepare(
+          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          ledgerEntry.ledger_type,
+          ledgerEntry.entry_date,
+          ledgerEntry.ref,
+          ledgerEntry.party,
+          ledgerEntry.debit,
+          ledgerEntry.credit,
+          ledgerEntry.source,
+          ledgerEntry.notes,
+          ledgerEntry.sub_type || null
+        );
+      }
     }
     }
 
@@ -297,6 +373,7 @@ export async function PUT(req: NextRequest) {
         (sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate,
         0
       );
+      const net_amount = total_amount - total_expense;
 
       db.prepare(
         `UPDATE purchases SET invoice_no=?, supplier=?, company_name=?, purchase_date=?, total_amount=?, paid_amount=?, notes=?,
@@ -308,7 +385,7 @@ export async function PUT(req: NextRequest) {
         supplier || company_name || old.company_name || "Pepsi Company",
         company_name || supplier || old.company_name || "Pepsi Company",
         purchase_date || todayLocal(),
-        total_amount,
+        net_amount,
         paid_amount || 0,
         notes || null,
         expense1_label || null,
@@ -359,58 +436,143 @@ export async function PUT(req: NextRequest) {
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source IN (?, ?)").run(oldRef, "Purchase", "Purchase Expense");
 
       if (!isHistorical) {
-      const entries = buildPurchaseAutoEntries({
-        supplierName: company_name || supplier || "Supplier",
-        totalAmount: items.reduce((sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate, 0),
-        paidAmount: paid_amount || 0,
-        expenseAmount: total_expense,
-        paymentType: "cash",
-        bankAccountName: "Main Bank",
-        invoiceNo: invoice_no || `#${id}`,
-      });
-
-      for (const entry of entries) {
-        const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
-        if (!account) {
-          const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
-          insertAccount.run(entry.accountName);
+        // Delete old auto-created expenses for this purchase
+        const oldExpenses = db
+          .prepare("SELECT id FROM expenses WHERE notes LIKE ? AND (deleted IS NULL OR deleted = 0)")
+          .all(`Auto from purchase ${oldRef}%`) as Array<{ id: number }>;
+        for (const exp of oldExpenses) {
+          reverseGeneralEntries(db, `PURCH-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ?").run(`PURCH-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE expenses SET deleted = 1 WHERE id = ?").run(exp.id);
         }
-        const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
-        if (accountId) {
-          const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
-          db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+
+        const entries = buildPurchaseAutoEntries({
+          supplierName: company_name || supplier || "Supplier",
+          totalAmount: net_amount,
+          paidAmount: paid_amount || 0,
+          expenseAmount: total_expense,
+          paymentType: "cash",
+          bankAccountName: "Main Bank",
+          invoiceNo: invoice_no || `#${id}`,
+        });
+
+        for (const entry of entries) {
+          const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+          if (!account) {
+            const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+            insertAccount.run(entry.accountName);
+          }
+          const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+          if (accountId) {
+            const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+            db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+            db.prepare(
+              "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+            ).run(purchase_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+          }
+        }
+
+        const ledgerEntries = buildPurchaseLedgerAutoEntries({
+          purchaseId: Number(id),
+          invoiceNo: invoice_no || `#${id}`,
+          entryDate: purchase_date || todayLocal(),
+          party: company_name || supplier || "Supplier",
+          totalAmount: net_amount,
+          paidAmount: paid_amount || 0,
+          expenseAmount: total_expense,
+        });
+        for (const ledgerEntry of ledgerEntries) {
           db.prepare(
-            "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
-          ).run(purchase_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, entry.refNo || invoice_no || `#${id}`);
+            `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            ledgerEntry.ledger_type,
+            ledgerEntry.entry_date,
+            ledgerEntry.ref,
+            ledgerEntry.party,
+            ledgerEntry.debit,
+            ledgerEntry.credit,
+            ledgerEntry.source,
+            ledgerEntry.notes,
+            ledgerEntry.sub_type || null
+          );
+        }
+
+        // Create new expense entries
+        const expenseItems = [
+          { label: expense1_label, amount: Number(expense1_amount) || 0 },
+          { label: expense2_label, amount: Number(expense2_amount) || 0 },
+          { label: expense3_label, amount: Number(expense3_amount) || 0 },
+        ].filter((e) => e.label && e.amount > 0);
+
+        for (const exp of expenseItems) {
+          const expResult = db
+            .prepare(
+              `INSERT INTO expenses (expense_date, category, title, amount, paid_from, salesman_id, notes, is_historical)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .run(
+              purchase_date || todayLocal(),
+              "Purchase Expense",
+              exp.label,
+              exp.amount,
+              "Cash",
+              null,
+              `Auto from purchase ${invoice_no || `#${id}`}`,
+              0
+            );
+          const expId = Number(expResult.lastInsertRowid);
+
+          // General entries for expense
+          const entries = buildExpenseAutoEntries({
+            title: exp.label || "Expense",
+            amount: exp.amount,
+            paidFrom: "Cash",
+            invoiceNo: `PURCH-EXP-${id}-${expId}`,
+          });
+          for (const entry of entries) {
+            const account = db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined;
+            if (!account) {
+              const insertAccount = db.prepare("INSERT INTO accounts (name, account_type, opening_balance, balance) VALUES (?, 'general', 0, 0)");
+              insertAccount.run(entry.accountName);
+            }
+            const accountId = (db.prepare("SELECT id FROM accounts WHERE name = ?").get(entry.accountName) as { id: number } | undefined)?.id;
+            if (accountId) {
+              const delta = entry.entryType === "debit" ? entry.amount : -entry.amount;
+              db.prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?").run(delta, accountId);
+              db.prepare(
+                "INSERT INTO general_entries (entry_date, account_id, entry_type, amount, narration, ref_no) VALUES (?, ?, ?, ?, ?, ?)"
+              ).run(purchase_date || todayLocal(), accountId, entry.entryType, entry.amount, entry.narration, `PURCH-EXP-${id}-${expId}`);
+            }
+          }
+
+          // Ledger entries for expense
+          const ledgerEntries = buildExpenseLedgerAutoEntries({
+            expenseId: expId,
+            invoiceNo: `PURCH-EXP-${id}-${expId}`,
+            entryDate: purchase_date || todayLocal(),
+            party: exp.label || "Expense",
+            amount: exp.amount,
+            paidFrom: "Cash",
+          });
+          for (const ledgerEntry of ledgerEntries) {
+            db.prepare(
+              `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+              ledgerEntry.ledger_type,
+              ledgerEntry.entry_date,
+              ledgerEntry.ref,
+              ledgerEntry.party,
+              ledgerEntry.debit,
+              ledgerEntry.credit,
+              ledgerEntry.source,
+              ledgerEntry.notes,
+              ledgerEntry.sub_type || null
+            );
+          }
         }
       }
-
-      const ledgerEntries = buildPurchaseLedgerAutoEntries({
-        purchaseId: Number(id),
-        invoiceNo: invoice_no || `#${id}`,
-        entryDate: purchase_date || todayLocal(),
-        party: company_name || supplier || "Supplier",
-        totalAmount: items.reduce((sum: number, item: PurchaseItemInput) => sum + calcItemTotal(item).totalRate, 0),
-        paidAmount: paid_amount || 0,
-        expenseAmount: total_expense,
-      });
-      for (const ledgerEntry of ledgerEntries) {
-        db.prepare(
-          `INSERT INTO manual_ledger_entries (ledger_type, entry_date, ref, party, debit, credit, source, notes, sub_type)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          ledgerEntry.ledger_type,
-          ledgerEntry.entry_date,
-          ledgerEntry.ref,
-          ledgerEntry.party,
-          ledgerEntry.debit,
-          ledgerEntry.credit,
-          ledgerEntry.source,
-          ledgerEntry.notes,
-          ledgerEntry.sub_type || null
-        );
-      }
-    }
     });
     tx();
     return NextResponse.json(db.prepare("SELECT * FROM purchases WHERE id = ?").get(id));
@@ -462,6 +624,18 @@ export async function DELETE(req: NextRequest) {
       const ref = purchase.invoice_no || `#${id}`;
       reverseGeneralEntries(db, ref);
       db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ? AND source IN (?, ?)").run(ref, "Purchase", "Purchase Expense");
+
+      if (!purchase.is_historical) {
+        // Delete auto-created expenses for this purchase
+        const oldExpenses = db
+          .prepare("SELECT id FROM expenses WHERE notes LIKE ? AND (deleted IS NULL OR deleted = 0)")
+          .all(`Auto from purchase ${ref}%`) as Array<{ id: number }>;
+        for (const exp of oldExpenses) {
+          reverseGeneralEntries(db, `PURCH-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE manual_ledger_entries SET deleted = 1 WHERE ref = ?").run(`PURCH-EXP-${id}-${exp.id}`);
+          db.prepare("UPDATE expenses SET deleted = 1 WHERE id = ?").run(exp.id);
+        }
+      }
 
       const syncId = (db.prepare("SELECT sync_id FROM purchases WHERE id = ?").get(id) as { sync_id: string } | undefined)?.sync_id;
       if (syncId) {

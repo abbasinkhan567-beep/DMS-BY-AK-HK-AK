@@ -137,7 +137,7 @@ export default function PurchasesPage() {
       ),
     [formReturns]
   );
-  const netTotal = Math.max(0, total + purchaseExpense - returnTotal);
+  const netTotal = Math.max(0, total - purchaseExpense - returnTotal);
 
   function openCreate() {
     setEditingId(null);
