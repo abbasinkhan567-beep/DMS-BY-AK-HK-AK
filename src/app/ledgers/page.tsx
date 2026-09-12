@@ -3,7 +3,7 @@
 import { useEffect, useState, Fragment } from "react";
 import { formatDate, formatMoney, downloadCsv, todayLocal, printHtml, escapeHtml } from "@/lib/utils";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
-import { FileSpreadsheet, Plus, X, Trash2, Pencil, Printer } from "lucide-react";
+import { FileSpreadsheet, Plus, X, Trash2, Pencil, Printer, FileText } from "lucide-react";
 import { ModuleSearch, matchSearch } from "@/components/ModuleSearch";
 import { ledgerSubTabs } from "@/lib/ledger-categories";
 
@@ -207,15 +207,20 @@ export default function LedgersPage() {
         title="Ledgers"
         subtitle="Ledgers"
         action={
-          isCommission ? (
-            <Button onClick={printCommission}>
-              <Printer size={16} /> Print Commission
+          <div className="flex gap-2">
+            {isCommission ? (
+              <Button onClick={printCommission}>
+                <Printer size={16} /> Print Commission
+              </Button>
+            ) : (
+              <Button onClick={openCreate}>
+                <Plus size={16} /> Add Entry
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
             </Button>
-          ) : (
-            <Button onClick={openCreate}>
-              <Plus size={16} /> Add Entry
-            </Button>
-          )
+          </div>
         }
       />
 

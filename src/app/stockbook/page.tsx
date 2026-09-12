@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
+import { CalendarDays, Pencil, Plus, Printer, Trash2, X, FileText } from "lucide-react";
 import { formatDate, todayLocal } from "@/lib/utils";
 import { printStockbookBill } from "@/lib/bills";
 import {
@@ -369,9 +369,14 @@ function printDay(r: SavedDay) {
         title="Stockbook"
         subtitle="Daily stock sheet"
         action={
-          <Button onClick={openCreate}>
-            <Plus size={16} /> New Day
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={openCreate}>
+              <Plus size={16} /> New Day
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
+            </Button>
+          </div>
         }
       />
 

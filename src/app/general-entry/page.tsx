@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Pencil, Plus, Trash2, FileSpreadsheet } from "lucide-react";
+import { Pencil, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
 import { ACCOUNT_TYPES, formatDate, formatMoney, downloadCsv, todayLocal } from "@/lib/utils";
 import {
   Button,
@@ -177,6 +177,9 @@ export default function GeneralEntryPage() {
                 <Plus size={16} /> Add Entry
               </Button>
             )}
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
+            </Button>
           </div>
         }
       />

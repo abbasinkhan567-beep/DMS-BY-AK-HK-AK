@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, FileSpreadsheet, Printer } from "lucide-react";
+import { ChevronDown, ChevronRight, FileSpreadsheet, Printer, FileText } from "lucide-react";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { downloadCsv, formatMoney, printHtml } from "@/lib/utils";
 
@@ -165,6 +165,9 @@ export default function MonthlyPage() {
             </Button>
             <Button onClick={doPrint}>
               <Printer size={16} /> Print
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
             </Button>
           </div>
         }

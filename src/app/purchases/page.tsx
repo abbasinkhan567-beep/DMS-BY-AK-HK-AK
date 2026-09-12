@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FileSpreadsheet, FileText, Pencil, Plus, Trash2, Calculator, Package, ArrowUpDown } from "lucide-react";
 import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelPurchaseBill, printPurchaseBill } from "@/lib/bills";
 import {
@@ -46,6 +46,8 @@ type LineItem = {
   conditional: number;
   rate_per_cotton: number;
   total_rate: number;
+  packs?: number;
+  loose?: number;
 };
 
 const emptyLine = (): LineItem => ({
@@ -58,6 +60,8 @@ const emptyLine = (): LineItem => ({
   conditional: 0,
   rate_per_cotton: 0,
   total_rate: 0,
+  packs: 0,
+  loose: 0,
 });
 
 export default function PurchasesPage() {
@@ -85,6 +89,86 @@ export default function PurchasesPage() {
   const [items, setItems] = useState<LineItem[]>([emptyLine()]);
   const [formReturns, setFormReturns] = useState<Array<{ product_id: number; qty: number; rate: number }>>([]);
   const [q, setQ] = useState("");
+  const [focusedRow, setFocusedRow] = useState(-1);
+  const [focusedCol, setFocusedCol] = useState(-1);
+
+  // Keyboard navigation for form rows
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>, rowIndex: number, colIndex: number) => {
+    const totalCols = 8; // product, company, size, qty, hand_to_hand, conditional, rate, total
+    const totalRows = items.length;
+
+    switch (e.key) {
+      case "Enter":
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Shift+Enter: previous column or previous row
+          if (colIndex > 0) {
+            focusCell(rowIndex, colIndex - 1);
+          } else if (rowIndex > 0) {
+            focusCell(rowIndex - 1, totalCols - 1);
+          }
+        } else {
+          // Enter: next column or next row
+          if (colIndex < totalCols - 1) {
+            focusCell(rowIndex, colIndex + 1);
+          } else if (rowIndex < totalRows - 1) {
+            focusCell(rowIndex + 1, 0);
+          } else {
+            // Last cell of last row - add new row
+            setItems([...items, { ...emptyLine(), company_name: form.company_name }]);
+            setTimeout(() => focusCell(totalRows, 0), 50);
+          }
+        }
+        break;
+      case "ArrowRight":
+        if (colIndex < totalCols - 1) {
+          e.preventDefault();
+          focusCell(rowIndex, colIndex + 1);
+        }
+        break;
+      case "ArrowLeft":
+        if (colIndex > 0) {
+          e.preventDefault();
+          focusCell(rowIndex, colIndex - 1);
+        }
+        break;
+      case "ArrowDown":
+        if (rowIndex < totalRows - 1) {
+          e.preventDefault();
+          focusCell(rowIndex + 1, colIndex);
+        }
+        break;
+      case "ArrowUp":
+        if (rowIndex > 0) {
+          e.preventDefault();
+          focusCell(rowIndex - 1, colIndex);
+        }
+        break;
+      case "Escape":
+        // Clear focus
+        (e.target as HTMLElement).blur();
+        break;
+      case "Delete":
+        if ((e.ctrlKey || e.metaKey) && items.length > 1) {
+          e.preventDefault();
+          setItems(items.filter((_, i) => i !== rowIndex));
+        }
+        break;
+    }
+  };
+
+  const focusCell = (row: number, col: number) => {
+    setFocusedRow(row);
+    setFocusedCol(col);
+    const selector = `[data-row="${row}"][data-col="${col}"]`;
+    const element = document.querySelector(selector) as HTMLElement;
+    if (element) {
+      element.focus();
+      if (element instanceof HTMLInputElement) {
+        element.select();
+      }
+    }
+  };
 
   async function load() {
     const [pRes, prodRes] = await Promise.all([
@@ -138,6 +222,11 @@ export default function PurchasesPage() {
     [formReturns]
   );
   const netTotal = Math.max(0, total - purchaseExpense - returnTotal);
+
+  // Calculate total packs and loose quantities
+  const totalPacks = useMemo(() => items.reduce((sum, item) => sum + (item.packs || 0), 0), [items]);
+  const totalLoose = useMemo(() => items.reduce((sum, item) => sum + (item.loose || 0), 0), [items]);
+  const totalQuantity = useMemo(() => items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0), [items]);
 
   function openCreate() {
     setEditingId(null);
@@ -228,6 +317,12 @@ export default function PurchasesPage() {
         if (patch.quantity !== undefined || patch.rate_per_cotton !== undefined || patch.product_id) {
           next.total_rate = qty * rate;
         }
+        
+        // Calculate packs and loose
+        const unitsPerPack = next.size?.includes("1.5") ? 12 : next.size?.includes("2.25") ? 8 : 24;
+        next.packs = Math.floor(qty / unitsPerPack);
+        next.loose = qty % unitsPerPack;
+        
         return next;
       })
     );
@@ -288,7 +383,7 @@ export default function PurchasesPage() {
           ...form,
           paid_amount: form.paid_amount !== undefined ? Number(form.paid_amount) : total,
           historical,
-          items: validItems,
+          items: validItems.map(({ packs, loose, ...rest }) => rest),
         }),
       });
       const data = await res.json();
@@ -349,6 +444,9 @@ export default function PurchasesPage() {
               }}
             >
               <FileText size={16} /> Old Record
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
             </Button>
           </div>
         }
@@ -471,14 +569,38 @@ export default function PurchasesPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items</p>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 font-semibold">
+                  <Package size={14} />
+                  <span>Total Packs: <strong>{totalPacks}</strong></span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-semibold">
+                  <ArrowUpDown size={14} />
+                  <span>Loose: <strong>{totalLoose}</strong></span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold">
+                  <Calculator size={14} />
+                  <span>Total Qty: <strong>{totalQuantity}</strong></span>
+                </div>
+              </div>
+            </div>
             {items.map((item, index) => (
-              <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
+              <div
+                key={index}
+                className={`space-y-2 rounded-xl bg-slate-50 p-3 transition-all duration-200 ${focusedRow === index ? "ring-2 ring-brand-400/50 bg-brand-50/30" : ""}`}
+                data-row={index}
+              >
                 <div className="grid gap-2 sm:grid-cols-3">
                   <Select
                     label="Product Name"
                     value={item.product_id || ""}
                     onChange={(e) => updateItem(index, { product_id: Number(e.target.value) })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 0)}
+                    data-row={index}
+                    data-col={0}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(0); }}
                   >
                     <option value="">Select...</option>
                     {products.map((p) => (
@@ -491,11 +613,19 @@ export default function PurchasesPage() {
                     label="Company Name"
                     value={item.company_name}
                     onChange={(e) => updateItem(index, { company_name: e.target.value })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 1)}
+                    data-row={index}
+                    data-col={1}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(1); }}
                   />
                   <Input
                     label="Size"
                     value={item.size}
                     onChange={(e) => updateItem(index, { size: e.target.value })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 2)}
+                    data-row={index}
+                    data-col={2}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(2); }}
                   />
                 </div>
                 <div className="grid gap-2 sm:grid-cols-5">
@@ -505,6 +635,26 @@ export default function PurchasesPage() {
                     min={0}
                     value={item.quantity}
                     onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 3)}
+                    data-row={index}
+                    data-col={3}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(3); }}
+                  />
+                  <Input
+                    label="Packs"
+                    type="number"
+                    min={0}
+                    value={item.packs || 0}
+                    readOnly
+                    className="bg-slate-100 text-center font-semibold"
+                  />
+                  <Input
+                    label="Loose"
+                    type="number"
+                    min={0}
+                    value={item.loose || 0}
+                    readOnly
+                    className="bg-slate-100 text-center font-semibold"
                   />
                   <Input
                     label="Hand to Hand"
@@ -513,6 +663,10 @@ export default function PurchasesPage() {
                     step="any"
                     value={item.hand_to_hand}
                     onChange={(e) => updateItem(index, { hand_to_hand: Number(e.target.value) })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 4)}
+                    data-row={index}
+                    data-col={4}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(4); }}
                   />
                   <Input
                     label="Conditional"
@@ -521,6 +675,10 @@ export default function PurchasesPage() {
                     step="any"
                     value={item.conditional}
                     onChange={(e) => updateItem(index, { conditional: Number(e.target.value) })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 5)}
+                    data-row={index}
+                    data-col={5}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(5); }}
                   />
                   <Input
                     label="Rate / Carton"
@@ -529,6 +687,10 @@ export default function PurchasesPage() {
                     step="any"
                     value={item.rate_per_cotton}
                     onChange={(e) => updateItem(index, { rate_per_cotton: Number(e.target.value) })}
+                    onKeyDown={(e) => handleKeyDown(e, index, 6)}
+                    data-row={index}
+                    data-col={6}
+                    onFocus={() => { setFocusedRow(index); setFocusedCol(6); }}
                   />
                   <div className="flex items-end justify-between gap-2">
                     <Input
@@ -537,7 +699,8 @@ export default function PurchasesPage() {
                       min={0}
                       step="any"
                       value={item.total_rate}
-                      onChange={(e) => updateItem(index, { total_rate: Number(e.target.value) })}
+                      readOnly
+                      className="bg-slate-100 font-semibold"
                     />
                     {items.length > 1 && (
                       <Button
@@ -545,6 +708,10 @@ export default function PurchasesPage() {
                         variant="ghost"
                         className="!px-2 text-rose-500"
                         onClick={() => setItems(items.filter((_, i) => i !== index))}
+                        onKeyDown={(e) => handleKeyDown(e, index, 7)}
+                        data-row={index}
+                        data-col={7}
+                        onFocus={() => { setFocusedRow(index); setFocusedCol(7); }}
                       >
                         <Trash2 size={16} />
                       </Button>
@@ -694,6 +861,24 @@ export default function PurchasesPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-4 py-3">
             <span className="font-medium text-slate-700">Items Total</span>
             <span className="text-xl font-bold text-brand-700">{formatMoney(total)}</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-4 text-sm">
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-brand-50 text-brand-700 font-semibold">
+              <span>Total Packs:</span>
+              <strong>{totalPacks}</strong>
+            </div>
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-semibold">
+              <span>Loose:</span>
+              <strong>{totalLoose}</strong>
+            </div>
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-sky-50 text-sky-700 font-semibold">
+              <span>Total Qty:</span>
+              <strong>{totalQuantity}</strong>
+            </div>
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 font-semibold">
+              <span>Items:</span>
+              <strong>{items.filter(i => i.product_id).length}</strong>
+            </div>
           </div>
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Purchase Expense</span>

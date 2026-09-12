@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FileSpreadsheet, FileText, Pencil, Plus, Trash2, Calculator, Package, ArrowUpDown } from "lucide-react";
 import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelSaleBill, printSaleBill } from "@/lib/bills";
 import {
@@ -16,8 +16,9 @@ import {
   TextArea,
 } from "@/components/ui";
 import { ModuleSearch, matchSearch } from "@/components/ModuleSearch";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
-type Product = { id: number; name: string; size: string; sale_price: number; stock: number };
+type Product = { id: number; name: string; size: string; sale_price: number; stock: number; unit?: string };
 type Customer = { id: number; name: string; shop_name: string | null };
 type Salesman = { id: number; name: string; status: string };
 
@@ -41,23 +42,31 @@ type Sale = {
 type LineItem = {
   product_id: number;
   product_name: string;
+  size?: string;
   quantity: number;
   unit_price: number;
   commission_rate: number;
   discount_rate: number;
   commission: number;
   discount: number;
+  total: number;
+  packs?: number;
+  loose?: number;
 };
 
 const emptyLine = (): LineItem => ({
   product_id: 0,
   product_name: "",
+  size: "",
   quantity: 1,
   unit_price: 0,
   commission_rate: 0,
   discount_rate: 0,
   commission: 0,
   discount: 0,
+  total: 0,
+  packs: 0,
+  loose: 0,
 });
 
 export default function SalesPage() {
@@ -92,6 +101,87 @@ export default function SalesPage() {
   const [formReturns, setFormReturns] = useState<Array<{ product_id: number; qty: number; rate: number }>>([]);
   const [q, setQ] = useState("");
   const [bakayaEdited, setBakayaEdited] = useState(false);
+  const [focusedRow, setFocusedRow] = useState(-1);
+  const [focusedCol, setFocusedCol] = useState(-1);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Keyboard navigation for form rows
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>, rowIndex: number, colIndex: number) => {
+    const totalCols = 8; // product, qty, rate, total, comm, disc, delete
+    const totalRows = items.length;
+
+    switch (e.key) {
+      case "Enter":
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Shift+Enter: previous column or previous row
+          if (colIndex > 0) {
+            focusCell(rowIndex, colIndex - 1);
+          } else if (rowIndex > 0) {
+            focusCell(rowIndex - 1, totalCols - 1);
+          }
+        } else {
+          // Enter: next column or next row
+          if (colIndex < totalCols - 1) {
+            focusCell(rowIndex, colIndex + 1);
+          } else if (rowIndex < totalRows - 1) {
+            focusCell(rowIndex + 1, 0);
+          } else {
+            // Last cell of last row - add new row
+            setItems([...items, emptyLine()]);
+            setTimeout(() => focusCell(totalRows, 0), 50);
+          }
+        }
+        break;
+      case "ArrowRight":
+        if (colIndex < totalCols - 1) {
+          e.preventDefault();
+          focusCell(rowIndex, colIndex + 1);
+        }
+        break;
+      case "ArrowLeft":
+        if (colIndex > 0) {
+          e.preventDefault();
+          focusCell(rowIndex, colIndex - 1);
+        }
+        break;
+      case "ArrowDown":
+        if (rowIndex < totalRows - 1) {
+          e.preventDefault();
+          focusCell(rowIndex + 1, colIndex);
+        }
+        break;
+      case "ArrowUp":
+        if (rowIndex > 0) {
+          e.preventDefault();
+          focusCell(rowIndex - 1, colIndex);
+        }
+        break;
+      case "Escape":
+        // Clear focus
+        (e.target as HTMLElement).blur();
+        break;
+      case "Delete":
+        if ((e.ctrlKey || e.metaKey) && items.length > 1) {
+          e.preventDefault();
+          setItems(items.filter((_, i) => i !== rowIndex));
+        }
+        break;
+    }
+  };
+
+  const focusCell = (row: number, col: number) => {
+    setFocusedRow(row);
+    setFocusedCol(col);
+    const selector = `[data-row="${row}"][data-col="${col}"]`;
+    const element = document.querySelector(selector) as HTMLElement;
+    if (element) {
+      element.focus();
+      if (element instanceof HTMLInputElement) {
+        element.select();
+      }
+    }
+  };
 
   async function load() {
     const [sRes, pRes, cRes, mRes] = await Promise.all([
@@ -190,6 +280,11 @@ export default function SalesPage() {
   const grandTotal = itemsSubtotal - totalDiscount - billExpense - returnTotal;
   const bakaya = Math.max(0, grandTotal - (Number(form.paid_amount) || 0));
 
+  // Calculate total packs and loose quantities
+  const totalPacks = useMemo(() => items.reduce((sum, item) => sum + (item.packs || 0), 0), [items]);
+  const totalLoose = useMemo(() => items.reduce((sum, item) => sum + (item.loose || 0), 0), [items]);
+  const totalQuantity = useMemo(() => items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0), [items]);
+
   function openCreate() {
     setEditingId(null);
     setHistorical(false);
@@ -279,6 +374,7 @@ export default function SalesPage() {
           const product = products.find((p) => p.id === patch.product_id);
           if (product) {
             next.product_name = product.name;
+            next.size = product.size;
             next.unit_price = product.sale_price;
           }
         }
@@ -287,6 +383,13 @@ export default function SalesPage() {
         const dRate = Number(next.discount_rate) || 0;
         next.commission = cRate * qty;
         next.discount = dRate * qty;
+        next.total = qty * Number(next.unit_price || 0) - next.discount;
+        
+        // Calculate packs and loose (assuming 1 pack = 24 units for bottles, adjust as needed)
+        const unitsPerPack = next.size?.includes("1.5") ? 12 : next.size?.includes("2.25") ? 8 : 24;
+        next.packs = Math.floor(qty / unitsPerPack);
+        next.loose = qty % unitsPerPack;
+        
         return next;
       })
     );
@@ -351,7 +454,7 @@ export default function SalesPage() {
           salesman_id: form.salesman_id || null,
           bill_bakaya: bakayaEdited ? Number(form.bill_bakaya) : bakaya,
           historical,
-          items: validItems,
+          items: validItems.map(({ packs, loose, ...rest }) => rest),
         }),
       });
       const data = await res.json();
@@ -415,6 +518,9 @@ export default function SalesPage() {
               }}
             >
               <FileText size={16} /> Old Record
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
             </Button>
           </div>
         }
@@ -617,11 +723,31 @@ export default function SalesPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Products (commission + discount har line pe)
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Products (commission + discount har line pe)
+              </p>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 font-semibold">
+                  <Package size={14} />
+                  <span>Total Packs: <strong>{totalPacks}</strong></span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-semibold">
+                  <ArrowUpDown size={14} />
+                  <span>Loose: <strong>{totalLoose}</strong></span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold">
+                  <Calculator size={14} />
+                  <span>Total Qty: <strong>{totalQuantity}</strong></span>
+                </div>
+              </div>
+            </div>
             {items.map((item, index) => (
-              <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
+              <div
+                key={index}
+                className={`space-y-2 rounded-xl bg-slate-50 p-3 transition-all duration-200 ${focusedRow === index ? "ring-2 ring-brand-400/50 bg-brand-50/30" : ""}`}
+                data-row={index}
+              >
                 <div className="grid gap-2 sm:grid-cols-12">
                   <div className="sm:col-span-2">
                     <Select
@@ -639,11 +765,35 @@ export default function SalesPage() {
                   </div>
                   <div className="sm:col-span-2">
                     <Input
-                      label="Qty (Carton)"
+                      label="Qty"
                       type="number"
                       min={1}
                       value={item.quantity}
                       onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+                      onKeyDown={(e) => handleKeyDown(e, index, 1)}
+                      data-row={index}
+                      data-col={1}
+                      onFocus={() => { setFocusedRow(index); setFocusedCol(1); }}
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <Input
+                      label="Packs"
+                      type="number"
+                      min={0}
+                      value={item.packs || 0}
+                      readOnly
+                      className="bg-slate-100 text-center font-semibold"
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <Input
+                      label="Loose"
+                      type="number"
+                      min={0}
+                      value={item.loose || 0}
+                      readOnly
+                      className="bg-slate-100 text-center font-semibold"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -654,6 +804,10 @@ export default function SalesPage() {
                       step="any"
                       value={item.unit_price}
                       onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
+                      onKeyDown={(e) => handleKeyDown(e, index, 2)}
+                      data-row={index}
+                      data-col={2}
+                      onFocus={() => { setFocusedRow(index); setFocusedCol(2); }}
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -662,8 +816,9 @@ export default function SalesPage() {
                       type="number"
                       min={0}
                       step="any"
-                      value={(Number(item.quantity) || 0) * (Number(item.unit_price) || 0)}
+                      value={item.total}
                       readOnly
+                      className="bg-slate-100 font-semibold"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -677,6 +832,10 @@ export default function SalesPage() {
                         updateItem(index, { commission_rate: Number(e.target.value) })
                       }
                       placeholder="e.g. 0.5"
+                      onKeyDown={(e) => handleKeyDown(e, index, 3)}
+                      data-row={index}
+                      data-col={3}
+                      onFocus={() => { setFocusedRow(index); setFocusedCol(3); }}
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -691,6 +850,10 @@ export default function SalesPage() {
                           updateItem(index, { discount_rate: Number(e.target.value) })
                         }
                         placeholder="e.g. 0.5"
+                        onKeyDown={(e) => handleKeyDown(e, index, 4)}
+                        data-row={index}
+                        data-col={4}
+                        onFocus={() => { setFocusedRow(index); setFocusedCol(4); }}
                       />
                       {items.length > 1 && (
                         <Button
@@ -698,6 +861,10 @@ export default function SalesPage() {
                           variant="ghost"
                           className="!px-2 text-rose-500"
                           onClick={() => setItems(items.filter((_, i) => i !== index))}
+                          onKeyDown={(e) => handleKeyDown(e, index, 5)}
+                          data-row={index}
+                          data-col={5}
+                          onFocus={() => { setFocusedRow(index); setFocusedCol(5); }}
                         >
                           <Trash2 size={16} />
                         </Button>
@@ -885,6 +1052,18 @@ export default function SalesPage() {
             <div className="flex justify-between text-base">
               <span className="font-semibold">Bill Total (Net)</span>
               <strong className="text-brand-700">{formatMoney(grandTotal)}</strong>
+            </div>
+            <div className="flex justify-between border-t border-brand-200 pt-2">
+              <span className="font-medium">Total Packs</span>
+              <strong className="text-brand-700">{totalPacks}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Total Loose</span>
+              <strong className="text-amber-700">{totalLoose}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Total Quantity</span>
+              <strong className="text-sky-700">{totalQuantity}</strong>
             </div>
           </div>
 

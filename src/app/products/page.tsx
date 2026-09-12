@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Plus, Trash2, FileText } from "lucide-react";
 import { formatMoney } from "@/lib/utils";
 import {
   Button,
@@ -111,9 +111,14 @@ export default function ProductsPage() {
         title="Products / Stock"
         subtitle="Inventory"
         action={
-          <Button data-add-new onClick={openCreate}>
-            <Plus size={16} /> Add Product
-          </Button>
+          <div className="flex gap-2">
+            <Button data-add-new onClick={openCreate}>
+              <Plus size={16} /> Add Product
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
+            </Button>
+          </div>
         }
       />
 

@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.22",
+    "version":  "10.4.0",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.22: Fixes - .gitignore safety (server-log, tokens), backup/sync stability, build polish. Old data 100% safe.",
+    "notes":  "v10.4.0: Major UI overhaul - Times New Roman font, modern glassmorphism design, animations, transparency effects. Added total packs/quantity display in sales/purchase forms. Implemented keyboard navigation (Enter/Arrow/Escape) for all form fields. All fields now fully editable (hand-to-hand, conditional, etc.). Added print functionality to all modules. Sales & purchases auto-update stock in products and stockbook. Auto calculations for packs/loose quantities. Modern responsive UI with smooth animations.",
     "updatedAt":  "2026-09-12"
 }

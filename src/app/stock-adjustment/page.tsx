@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText } from "lucide-react";
 import { formatDate, todayLocal } from "@/lib/utils";
 import {
   Button,
@@ -87,22 +87,27 @@ export default function StockAdjustmentPage() {
         title="Stock Adjustment"
         subtitle="Adjustments"
         action={
-          <Button
-            data-add-new
-            onClick={() => {
-              setError("");
-              setForm({
-                adjust_date: todayLocal(),
-                product_id: 0,
-                new_qty: 0,
-                reason: "",
-                notes: "",
-              });
-              setOpen(true);
-            }}
-          >
-            <Plus size={16} /> New Adjustment
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              data-add-new
+              onClick={() => {
+                setError("");
+                setForm({
+                  adjust_date: todayLocal(),
+                  product_id: 0,
+                  new_qty: 0,
+                  reason: "",
+                  notes: "",
+                });
+                setOpen(true);
+              }}
+            >
+              <Plus size={16} /> New Adjustment
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
+            </Button>
+          </div>
         }
       />
 

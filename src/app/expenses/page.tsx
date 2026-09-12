@@ -181,6 +181,9 @@ export default function ExpensesPage() {
             <Button data-add-new onClick={openCreate}>
               <Plus size={16} /> Add Expense
             </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
+            </Button>
           </div>
         }
       />

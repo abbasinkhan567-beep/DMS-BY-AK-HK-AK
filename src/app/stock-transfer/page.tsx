@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, FileText } from "lucide-react";
 import { formatDate, todayLocal } from "@/lib/utils";
 import {
   Button,
@@ -85,24 +85,29 @@ export default function StockTransferPage() {
         title="Stock Transfer"
         subtitle="Transfers"
         action={
-          <Button
-            data-add-new
-            onClick={() => {
-              setEditing(null);
-              setError("");
-              setForm({
-                transfer_date: todayLocal(),
-                product_id: 0,
-                from_location: "main",
-                to_location: "Floor 1",
-                quantity: 1,
-                notes: "",
-              });
-              setOpen(true);
-            }}
-          >
-            <Plus size={16} /> New Transfer
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              data-add-new
+              onClick={() => {
+                setEditing(null);
+                setError("");
+                setForm({
+                  transfer_date: todayLocal(),
+                  product_id: 0,
+                  from_location: "main",
+                  to_location: "Floor 1",
+                  quantity: 1,
+                  notes: "",
+                });
+                setOpen(true);
+              }}
+            >
+              <Plus size={16} /> New Transfer
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} title="Print List (Ctrl+P)">
+              <FileText size={16} className="mr-1" /> Print
+            </Button>
+          </div>
         }
       />
 
