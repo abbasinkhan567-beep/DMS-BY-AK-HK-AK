@@ -16,3 +16,5 @@ tsconfig.tsbuildinfo
 data/server-pid.txt
 data/.auth-secret
 data/.sync.lock
+data/server-log.txt
+GIT HUB TOKEN.txt
