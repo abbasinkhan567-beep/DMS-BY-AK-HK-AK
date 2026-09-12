@@ -430,6 +430,115 @@ table {
     0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-400) 40%, transparent); }
     100% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand-400) 0%, transparent); }
   }
+
+  /* Professional form styling */
+  .form-section {
+    @apply space-y-4;
+  }
+
+  .form-section-title {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3 pb-2 border-b border-slate-100;
+  }
+
+  .form-row {
+    @apply grid gap-3 sm:grid-cols-12;
+  }
+
+  .form-field {
+    @apply rounded-[var(--radius)] bg-slate-50/50 p-3 transition-all duration-200;
+  }
+
+  .form-field:hover {
+    @apply bg-slate-50;
+  }
+
+  .form-field:focus-within {
+    @apply ring-2 ring-brand-400/30 bg-white;
+  }
+
+  /* Card enhancements */
+  .card-pro {
+    @apply rounded-[var(--radius)] bg-surface-card/80 backdrop-blur-xl border border-edge/50 shadow-sm transition-all duration-300;
+  }
+
+  .card-pro:hover {
+    @apply shadow-lg border-brand-200/50;
+  }
+
+  /* Table improvements */
+  .table-pro {
+    @apply w-full text-sm;
+  }
+
+  .table-pro thead th {
+    @apply px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 bg-slate-50/50 border-b border-slate-100;
+  }
+
+  .table-pro tbody td {
+    @apply px-4 py-3 text-slate-600 border-b border-slate-50/50;
+  }
+
+  .table-pro tbody tr {
+    @apply transition-colors duration-150;
+  }
+
+  .table-pro tbody tr:hover {
+    @apply bg-slate-50/30;
+  }
+
+  /* Modal professional */
+  .modal-pro {
+    @apply fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 pt-10 backdrop-blur-sm;
+  }
+
+  .modal-pro-content {
+    @apply w-full max-w-4xl rounded-2xl bg-surface-card shadow-2xl animate-scale-in border border-edge;
+  }
+
+  .modal-pro-header {
+    @apply flex items-center justify-between border-b border-edge px-6 py-4 bg-surface-muted/50;
+  }
+
+  .modal-pro-body {
+    @apply p-6 space-y-4;
+  }
+
+  /* Status indicators */
+  .status-dot {
+    @apply inline-flex items-center gap-1.5;
+  }
+
+  .status-dot::before {
+    content: '';
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot.success::before { @apply bg-emerald-500; }
+  .status-dot.warning::before { @apply bg-amber-500; }
+  .status-dot.error::before { @apply bg-rose-500; }
+  .status-dot.info::before { @apply bg-sky-500; }
+
+  /* Professional spacing utilities */
+  .space-y-form { @apply space-y-4; }
+  .space-y-section { @apply space-y-6; }
+  .gap-form { @apply gap-3; }
+  .gap-section { @apply gap-4; }
+
+  /* Print improvements */
+  @media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    .card, .card-glass, .card-pro {
+      box-shadow: none !important;
+      border: 1px solid #e2e8f0 !important;
+      background: white !important;
+      backdrop-filter: none !important;
+    }
+    body { background: white !important; }
+    .animate-fade-in, .animate-slide-up, .animate-scale-in {
+      animation: none !important;
+    }
+  }
 }
 
 @keyframes fadeIn {

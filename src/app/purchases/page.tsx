@@ -696,8 +696,8 @@ export default function PurchasesPage() {
               Returned Goods (Optional)
             </p>
             {formReturns.map((r, index) => (
-              <div key={index} className="space-y-2 rounded-xl bg-slate-50 p-3">
-                <div className="grid gap-2 sm:grid-cols-12">
+              <div key={index} className="rounded-xl bg-slate-50 p-4 animate-slide-up stagger-1 border border-slate-100">
+                <div className="grid gap-3 sm:grid-cols-12">
                   <div className="sm:col-span-4">
                     <Select
                       label="Product"
@@ -713,6 +713,10 @@ export default function PurchasesPage() {
                           )
                         );
                       }}
+                      onKeyDown={(e) => handleKeyDown(e, index + items.length, 0)}
+                      data-row={index + items.length}
+                      data-col={0}
+                      onFocus={() => { setFocusedRow(index + items.length); setFocusedCol(0); }}
                     >
                       <option value="">Select...</option>
                       {items
@@ -736,6 +740,10 @@ export default function PurchasesPage() {
                           prev.map((x, i) => (i === index ? { ...x, rate: Number(e.target.value) } : x))
                         )
                       }
+                      onKeyDown={(e) => handleKeyDown(e, index + items.length, 1)}
+                      data-row={index + items.length}
+                      data-col={1}
+                      onFocus={() => { setFocusedRow(index + items.length); setFocusedCol(1); }}
                     />
                   </div>
                   <div className="sm:col-span-3">
@@ -750,11 +758,15 @@ export default function PurchasesPage() {
                           prev.map((x, i) => (i === index ? { ...x, qty: Number(e.target.value) } : x))
                         )
                       }
+                      onKeyDown={(e) => handleKeyDown(e, index + items.length, 2)}
+                      data-row={index + items.length}
+                      data-col={2}
+                      onFocus={() => { setFocusedRow(index + items.length); setFocusedCol(2); }}
                     />
                   </div>
                   <div className="sm:col-span-2">
                     <div className="flex items-end gap-1">
-                      <span className="pb-2.5 text-sm text-slate-600">
+                      <span className="pb-2.5 text-sm font-semibold text-brand-700">
                         {formatMoney((Number(r.qty) || 0) * (Number(r.rate) || 0))}
                       </span>
                       <Button
@@ -762,6 +774,10 @@ export default function PurchasesPage() {
                         variant="ghost"
                         className="!px-2 text-rose-500"
                         onClick={() => setFormReturns(formReturns.filter((_, i) => i !== index))}
+                        onKeyDown={(e) => handleKeyDown(e, index + items.length, 3)}
+                        data-row={index + items.length}
+                        data-col={3}
+                        onFocus={() => { setFocusedRow(index + items.length); setFocusedCol(3); }}
                       >
                         <Trash2 size={16} />
                       </Button>
