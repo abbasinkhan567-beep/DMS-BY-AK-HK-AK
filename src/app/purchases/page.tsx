@@ -46,8 +46,6 @@ type LineItem = {
   conditional: number;
   rate_per_cotton: number;
   total_rate: number;
-  packs?: number;
-  loose?: number;
 };
 
 const emptyLine = (): LineItem => ({
@@ -60,8 +58,6 @@ const emptyLine = (): LineItem => ({
   conditional: 0,
   rate_per_cotton: 0,
   total_rate: 0,
-  packs: 0,
-  loose: 0,
 });
 
 export default function PurchasesPage() {
@@ -223,11 +219,6 @@ export default function PurchasesPage() {
   );
   const netTotal = Math.max(0, total - purchaseExpense - returnTotal);
 
-  // Calculate total packs and loose quantities
-  const totalPacks = useMemo(() => items.reduce((sum, item) => sum + (item.packs || 0), 0), [items]);
-  const totalLoose = useMemo(() => items.reduce((sum, item) => sum + (item.loose || 0), 0), [items]);
-  const totalQuantity = useMemo(() => items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0), [items]);
-
   function openCreate() {
     setEditingId(null);
     setHistorical(false);
@@ -317,12 +308,6 @@ export default function PurchasesPage() {
         if (patch.quantity !== undefined || patch.rate_per_cotton !== undefined || patch.product_id) {
           next.total_rate = qty * rate;
         }
-        
-        // Calculate packs and loose
-        const unitsPerPack = next.size?.includes("1.5") ? 12 : next.size?.includes("2.25") ? 8 : 24;
-        next.packs = Math.floor(qty / unitsPerPack);
-        next.loose = qty % unitsPerPack;
-        
         return next;
       })
     );
@@ -383,7 +368,7 @@ export default function PurchasesPage() {
           ...form,
           paid_amount: form.paid_amount !== undefined ? Number(form.paid_amount) : total,
           historical,
-          items: validItems.map(({ packs, loose, ...rest }) => rest),
+          items: validItems,
         }),
       });
       const data = await res.json();
@@ -572,17 +557,9 @@ export default function PurchasesPage() {
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items</p>
               <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 font-semibold">
-                  <Package size={14} />
-                  <span>Total Packs: <strong>{totalPacks}</strong></span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-semibold">
-                  <ArrowUpDown size={14} />
-                  <span>Loose: <strong>{totalLoose}</strong></span>
-                </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold">
                   <Calculator size={14} />
-                  <span>Total Qty: <strong>{totalQuantity}</strong></span>
+                  <span>Total Qty: <strong>{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong></span>
                 </div>
               </div>
             </div>
@@ -639,22 +616,6 @@ export default function PurchasesPage() {
                     data-row={index}
                     data-col={3}
                     onFocus={() => { setFocusedRow(index); setFocusedCol(3); }}
-                  />
-                  <Input
-                    label="Packs"
-                    type="number"
-                    min={0}
-                    value={item.packs || 0}
-                    readOnly
-                    className="bg-slate-100 text-center font-semibold"
-                  />
-                  <Input
-                    label="Loose"
-                    type="number"
-                    min={0}
-                    value={item.loose || 0}
-                    readOnly
-                    className="bg-slate-100 text-center font-semibold"
                   />
                   <Input
                     label="Hand to Hand"
@@ -862,18 +823,10 @@ export default function PurchasesPage() {
             <span className="font-medium text-slate-700">Items Total</span>
             <span className="text-xl font-bold text-brand-700">{formatMoney(total)}</span>
           </div>
-          <div className="grid gap-2 sm:grid-cols-4 text-sm">
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-brand-50 text-brand-700 font-semibold">
-              <span>Total Packs:</span>
-              <strong>{totalPacks}</strong>
-            </div>
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-semibold">
-              <span>Loose:</span>
-              <strong>{totalLoose}</strong>
-            </div>
+          <div className="grid gap-2 sm:grid-cols-2 text-sm">
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-sky-50 text-sky-700 font-semibold">
               <span>Total Qty:</span>
-              <strong>{totalQuantity}</strong>
+              <strong>{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong>
             </div>
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 font-semibold">
               <span>Items:</span>

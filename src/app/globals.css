@@ -118,7 +118,7 @@ body {
 }
 
 html {
-  font-size: 15.5px;
+  font-size: 17px;
 }
 
 body {
@@ -133,7 +133,7 @@ body {
   label,
   th,
   td {
-    font-size: 0.9375rem;
+    font-size: 1rem;
   }
 
   * {

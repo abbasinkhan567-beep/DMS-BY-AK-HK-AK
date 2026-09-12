@@ -362,26 +362,16 @@ export default function LedgersPage() {
                         <button
                           type="button"
                           onClick={() => openEdit(r)}
-                          disabled={!r.manual}
-                          className={`rounded-lg p-1.5 ${
-                            r.manual
-                              ? "text-slate-500 hover:bg-surface-muted"
-                              : "cursor-not-allowed text-slate-300"
-                          }`}
-                          title={r.manual ? "Edit" : "Auto-generated entry — not editable"}
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-surface-muted"
+                          title="Edit"
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           type="button"
                           onClick={() => remove(r.id)}
-                          disabled={!r.manual}
-                          className={`rounded-lg p-1.5 ${
-                            r.manual
-                              ? "text-rose-500 hover:bg-rose-50"
-                              : "cursor-not-allowed text-slate-300"
-                          }`}
-                          title={r.manual ? "Delete" : "Auto-generated entry — not deletable"}
+                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
+                          title="Delete"
                         >
                           <Trash2 size={16} />
                         </button>

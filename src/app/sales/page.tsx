@@ -50,8 +50,6 @@ type LineItem = {
   commission: number;
   discount: number;
   total: number;
-  packs?: number;
-  loose?: number;
 };
 
 const emptyLine = (): LineItem => ({
@@ -65,8 +63,6 @@ const emptyLine = (): LineItem => ({
   commission: 0,
   discount: 0,
   total: 0,
-  packs: 0,
-  loose: 0,
 });
 
 export default function SalesPage() {
@@ -280,11 +276,6 @@ export default function SalesPage() {
   const grandTotal = itemsSubtotal - totalDiscount - billExpense - returnTotal;
   const bakaya = Math.max(0, grandTotal - (Number(form.paid_amount) || 0));
 
-  // Calculate total packs and loose quantities
-  const totalPacks = useMemo(() => items.reduce((sum, item) => sum + (item.packs || 0), 0), [items]);
-  const totalLoose = useMemo(() => items.reduce((sum, item) => sum + (item.loose || 0), 0), [items]);
-  const totalQuantity = useMemo(() => items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0), [items]);
-
   function openCreate() {
     setEditingId(null);
     setHistorical(false);
@@ -384,12 +375,6 @@ export default function SalesPage() {
         next.commission = cRate * qty;
         next.discount = dRate * qty;
         next.total = qty * Number(next.unit_price || 0) - next.discount;
-        
-        // Calculate packs and loose (assuming 1 pack = 24 units for bottles, adjust as needed)
-        const unitsPerPack = next.size?.includes("1.5") ? 12 : next.size?.includes("2.25") ? 8 : 24;
-        next.packs = Math.floor(qty / unitsPerPack);
-        next.loose = qty % unitsPerPack;
-        
         return next;
       })
     );
@@ -454,7 +439,7 @@ export default function SalesPage() {
           salesman_id: form.salesman_id || null,
           bill_bakaya: bakayaEdited ? Number(form.bill_bakaya) : bakaya,
           historical,
-          items: validItems.map(({ packs, loose, ...rest }) => rest),
+          items: validItems,
         }),
       });
       const data = await res.json();
@@ -727,21 +712,13 @@ export default function SalesPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Products (commission + discount har line pe)
               </p>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 font-semibold">
-                  <Package size={14} />
-                  <span>Total Packs: <strong>{totalPacks}</strong></span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-semibold">
-                  <ArrowUpDown size={14} />
-                  <span>Loose: <strong>{totalLoose}</strong></span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold">
-                  <Calculator size={14} />
-                  <span>Total Qty: <strong>{totalQuantity}</strong></span>
-                </div>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold">
+                <Calculator size={14} />
+                <span>Total Qty: <strong>{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong></span>
               </div>
             </div>
+          </div>
             {items.map((item, index) => (
               <div
                 key={index}
@@ -774,26 +751,6 @@ export default function SalesPage() {
                       data-row={index}
                       data-col={1}
                       onFocus={() => { setFocusedRow(index); setFocusedCol(1); }}
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <Input
-                      label="Packs"
-                      type="number"
-                      min={0}
-                      value={item.packs || 0}
-                      readOnly
-                      className="bg-slate-100 text-center font-semibold"
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <Input
-                      label="Loose"
-                      type="number"
-                      min={0}
-                      value={item.loose || 0}
-                      readOnly
-                      className="bg-slate-100 text-center font-semibold"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -1054,16 +1011,8 @@ export default function SalesPage() {
               <strong className="text-brand-700">{formatMoney(grandTotal)}</strong>
             </div>
             <div className="flex justify-between border-t border-brand-200 pt-2">
-              <span className="font-medium">Total Packs</span>
-              <strong className="text-brand-700">{totalPacks}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Total Loose</span>
-              <strong className="text-amber-700">{totalLoose}</strong>
-            </div>
-            <div className="flex justify-between">
               <span className="font-medium">Total Quantity</span>
-              <strong className="text-sky-700">{totalQuantity}</strong>
+              <strong className="text-sky-700">{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong>
             </div>
           </div>
 
