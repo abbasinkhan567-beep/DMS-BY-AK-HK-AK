@@ -1,6 +1,6 @@
 {
-    "version":  "10.3.21",
+    "version":  "10.3.22",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.3.21: Sales line now shows a Total box (qty x rate) before Comm/unit per product.",
-    "updatedAt":  "2026-08-13"
+    "notes":  "v10.3.22: Fixes - .gitignore safety (server-log, tokens), backup/sync stability, build polish. Old data 100% safe.",
+    "updatedAt":  "2026-09-12"
 }
