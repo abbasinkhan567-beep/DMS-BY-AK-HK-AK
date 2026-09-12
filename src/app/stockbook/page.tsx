@@ -563,20 +563,20 @@ function printDay(r: SavedDay) {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 sticky left-0 bg-white z-10">
                     Particulars
                   </th>
                   {cols.map((c) => (
-                    <th key={c.id} className="px-2 py-2.5 text-center">
+                    <th key={c.id} className="px-2 py-3 text-center sticky top-0 bg-white z-10">
                       <span className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-700">
                         {c.name} {c.size ? `(${c.size})` : ""}
                         <button
                           type="button"
-                          className="text-slate-400 hover:text-rose-500"
+                          className="text-slate-400 hover:text-rose-500 transition-colors"
                           onClick={() => removeColumn(c.id)}
                           title="Remove product"
                         >
@@ -585,25 +585,25 @@ function printDay(r: SavedDay) {
                       </span>
                     </th>
                   ))}
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 sticky right-0 bg-white z-10">
                     Total
                   </th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-slate-100">
-                  <td className="px-3 py-2 font-semibold text-slate-700">Opening Stock</td>
+                <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                  <td className="px-3 py-2.5 font-semibold text-slate-700 sticky left-0 bg-white z-10">Opening Stock</td>
                   {cols.map((c) => (
                     <td key={c.id} className="px-2 py-2 text-center">
                       {cellInput(money(opening[c.id]), (v) => setOpening({ ...opening, [c.id]: v }))}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-center font-bold">{grandOpening}</td>
+                  <td className="px-3 py-2 text-center font-bold text-brand-700">{grandOpening}</td>
                 </tr>
 
                 {saleRows.map((r, idx) => (
-                  <tr key={idx} className="border-b border-slate-100">
-                    <td className="px-3 py-2">
+                  <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                    <td className="px-3 py-2 sticky left-0 bg-white z-10">
                       <div className="flex items-center gap-1">
                         <Select
                           value={r.salesman_id || ""}
@@ -624,7 +624,7 @@ function printDay(r: SavedDay) {
                         </Select>
                         <button
                           type="button"
-                          className="text-slate-400 hover:text-rose-500"
+                          className="text-slate-400 hover:text-rose-500 transition-colors"
                           onClick={() => setSaleRows(saleRows.filter((_, i) => i !== idx))}
                           title="Remove row"
                         >
@@ -637,32 +637,32 @@ function printDay(r: SavedDay) {
                         {cellInput(money(r.qty[c.id]), (v) => updateSaleQty(idx, c.id, v))}
                       </td>
                     ))}
-                    <td className="px-3 py-2 text-center font-bold">{rowTotal(r)}</td>
+                    <td className="px-3 py-2 text-center font-bold text-brand-600">{rowTotal(r)}</td>
                   </tr>
                 ))}
 
-                <tr className="border-b border-slate-100 bg-brand-50/40">
-                  <td className="px-3 py-2 font-bold text-slate-800">Total Sale</td>
+                <tr className="border-b border-slate-100 bg-gradient-to-r from-brand-50 to-brand-100">
+                  <td className="px-3 py-2.5 font-bold text-slate-800 sticky left-0 bg-white z-10">Total Sale</td>
                   {cols.map((c) => (
-                    <td key={c.id} className="px-2 py-2 text-center font-bold">
+                    <td key={c.id} className="px-2 py-2.5 text-center font-bold text-brand-700">
                       {totalSaleFor(c.id)}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-center font-bold">{grandTotalSale}</td>
+                  <td className="px-3 py-2.5 text-center font-bold text-brand-700">{grandTotalSale}</td>
                 </tr>
 
-                <tr className="border-b border-slate-100">
-                  <td className="px-3 py-2 font-semibold text-slate-700">Floor Stock</td>
+                <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                  <td className="px-3 py-2 font-semibold text-slate-700 sticky left-0 bg-white z-10">Floor Stock</td>
                   {cols.map((c) => (
                     <td key={c.id} className="px-2 py-2 text-center font-semibold text-slate-700">
                       {floorAutoFor(c.id)}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-center font-bold">{grandFloor}</td>
+                  <td className="px-3 py-2 text-center font-bold text-emerald-700">{grandFloor}</td>
                 </tr>
 
-                <tr className="border-b border-slate-100">
-                  <td className="px-3 py-2 font-semibold text-slate-700">
+                <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                  <td className="px-3 py-2 font-semibold text-slate-700 sticky left-0 bg-white z-10">
                     Stock From Company
                   </td>
                   {cols.map((c) => (
@@ -673,32 +673,32 @@ function printDay(r: SavedDay) {
                       )}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-center font-bold">{grandCompany}</td>
+                  <td className="px-3 py-2 text-center font-bold text-sky-700">{grandCompany}</td>
                 </tr>
 
-                <tr className="bg-slate-50">
-                  <td className="px-3 py-2 font-bold text-slate-800">
+                <tr className="bg-gradient-to-r from-emerald-50 to-emerald-100">
+                  <td className="px-3 py-2.5 font-bold text-slate-800 sticky left-0 bg-white z-10">
                     Closing Stock
                   </td>
                   {cols.map((c) => (
-                    <td key={c.id} className="px-2 py-2 text-center font-bold">
+                    <td key={c.id} className="px-2 py-2.5 text-center font-bold text-emerald-700">
                       {closingFor(c.id)}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-center font-bold">{grandClosing}</td>
+                  <td className="px-3 py-2.5 text-center font-bold text-emerald-700">{grandClosing}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             <Button
               type="button"
-              variant="secondary"
-              className="!py-1.5 !text-xs"
+              variant="outline"
+              className="w-full sm:w-auto py-2 text-sm font-medium hover:bg-sky-50 border-sky-300"
               onClick={() => setSaleRows([...saleRows, emptySalesmanRow()])}
             >
-              + Salesman Row
+              <Plus size={16} className="mr-1" /> Add Salesman Row
             </Button>
           </div>
 
@@ -706,16 +706,16 @@ function printDay(r: SavedDay) {
             label="Note"
             value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
-            placeholder="Daily note"
+            placeholder="Daily note..."
           />
 
           {error && <p className="text-sm text-rose-500">{error}</p>}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving} className="px-6 py-2">
               {saving ? "Saving..." : "Save Sheet"}
             </Button>
           </div>

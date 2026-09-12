@@ -3,7 +3,7 @@
 import { useEffect, useState, Fragment } from "react";
 import { formatDate, formatMoney, downloadCsv, todayLocal, printHtml, escapeHtml } from "@/lib/utils";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
-import { FileSpreadsheet, Plus, X, Trash2, Pencil, Printer, FileText } from "lucide-react";
+import { FileSpreadsheet, Plus, X, Trash2, Pencil, Printer, FileText, AlertCircle } from "lucide-react";
 import { ModuleSearch, matchSearch } from "@/components/ModuleSearch";
 import { ledgerSubTabs } from "@/lib/ledger-categories";
 
@@ -294,16 +294,16 @@ export default function LedgersPage() {
         )}
       </div>
 
-      <Card>
+<Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100">
+              <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100">
                 {["Date", "Ref", "Party", colLabels.debit, colLabels.credit, "Source", colLabels.notes, "Actions"].map(
                   (h) => (
                     <th
                       key={h}
-                      className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                      className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sticky top-0 bg-white z-10"
                     >
                       {h}
                     </th>
@@ -323,7 +323,7 @@ export default function LedgersPage() {
                   const segTotal = seg.rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
                   return (
                     <Fragment key={seg.party || "-"}>
-                      <tr className="bg-brand-50">
+                      <tr className="bg-gradient-to-r from-brand-50 to-brand-100">
                         <td colSpan={8} className="px-5 py-2.5">
                           <span className="text-sm font-bold text-brand-800">{seg.party || "-"}</span>
                           <span className="ml-2 text-xs text-muted">({seg.rows.length} sale{seg.rows.length === 1 ? "" : "s"})</span>
@@ -333,15 +333,15 @@ export default function LedgersPage() {
                         </td>
                       </tr>
                       {seg.rows.map((r, i) => (
-                        <tr key={`${r.id}-${i}`} className="border-b border-slate-50">
-                          <td className="px-5 py-3 text-slate-600">{formatDate(r.date)}</td>
-                          <td className="px-5 py-3 text-slate-600">{r.ref || "-"}</td>
-                          <td className="px-5 py-3 font-medium text-slate-800">{r.party || "-"}</td>
-                          <td className="px-5 py-3">{formatMoney(Number(r.debit) || 0)}</td>
-                          <td className="px-5 py-3">{formatMoney(Number(r.credit) || 0)}</td>
-                          <td className="px-5 py-3 text-slate-600">{r.source || "-"}</td>
-                          <td className="px-5 py-3 text-slate-500">{r.notes ?? "-"}</td>
-                          <td className="px-5 py-3" />
+                        <tr key={`${r.id}-${i}`} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="px-4 py-3 text-slate-600">{formatDate(r.date)}</td>
+                          <td className="px-4 py-3 text-slate-600">{r.ref || "-"}</td>
+                          <td className="px-4 py-3 font-medium text-slate-800">{r.party || "-"}</td>
+                          <td className="px-4 py-3 text-emerald-700 font-semibold">{formatMoney(Number(r.debit) || 0)}</td>
+                          <td className="px-4 py-3 text-rose-500 font-semibold">{formatMoney(Number(r.credit) || 0)}</td>
+                          <td className="px-4 py-3 text-slate-600">{r.source || "-"}</td>
+                          <td className="px-4 py-3 text-slate-500">{r.notes ?? "-"}</td>
+                          <td className="px-4 py-3" />
                         </tr>
                       ))}
                     </Fragment>
@@ -349,20 +349,20 @@ export default function LedgersPage() {
                 })
               ) : (
                 filtered.map((r, i) => (
-                  <tr key={`${r.id}-${i}`} className="border-b border-slate-50">
-                    <td className="px-5 py-3 text-slate-600">{formatDate(r.date)}</td>
-                    <td className="px-5 py-3 text-slate-600">{r.ref || "-"}</td>
-                    <td className="px-5 py-3 font-medium text-slate-800">{r.party || "-"}</td>
-                    <td className="px-5 py-3">{formatMoney(Number(r.debit) || 0)}</td>
-                    <td className="px-5 py-3">{formatMoney(Number(r.credit) || 0)}</td>
-                    <td className="px-5 py-3 text-slate-600">{r.source || "-"}</td>
-                    <td className="px-5 py-3 text-slate-500">{r.notes ?? "-"}</td>
-                    <td className="px-5 py-3">
+                  <tr key={`${r.id}-${i}`} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="px-4 py-3 text-slate-600">{formatDate(r.date)}</td>
+                    <td className="px-4 py-3 text-slate-600">{r.ref || "-"}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800">{r.party || "-"}</td>
+                    <td className="px-4 py-3 text-emerald-700 font-semibold">{formatMoney(Number(r.debit) || 0)}</td>
+                    <td className="px-4 py-3 text-rose-500 font-semibold">{formatMoney(Number(r.credit) || 0)}</td>
+                    <td className="px-4 py-3 text-slate-600">{r.source || "-"}</td>
+                    <td className="px-4 py-3 text-slate-500">{r.notes ?? "-"}</td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => openEdit(r)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-surface-muted"
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-surface-muted transition-colors"
                           title="Edit"
                         >
                           <Pencil size={16} />
@@ -370,7 +370,7 @@ export default function LedgersPage() {
                         <button
                           type="button"
                           onClick={() => remove(r.id)}
-                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
+                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 transition-colors"
                           title="Delete"
                         >
                           <Trash2 size={16} />
@@ -386,47 +386,46 @@ export default function LedgersPage() {
       </Card>
 
       <div
-        className={`fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 pt-10 backdrop-blur-[2px] sm:pt-16 ${
-          open ? "" : "hidden"
-        }`}
+        className={`fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 pt-10 backdrop-blur-sm sm:pt-16 ${open ? "" : "hidden"}`}
         onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
       >
-        <div className="w-full rounded-2xl bg-surface-card shadow-2xl max-w-lg">
-          <div className="flex items-center justify-between border-b border-edge px-5 py-4">
-            <h2 className="text-lg font-semibold text-ink">{editing ? "Edit Entry" : "Add Entry"}</h2>
+        <div className="w-full rounded-2xl bg-white shadow-2xl max-w-lg animate-scale-in border border-slate-100">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50 rounded-t-2xl">
+            <h2 className="text-lg font-semibold text-slate-800">{editing ? "Edit Entry" : "Add Entry"}</h2>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-lg p-1 text-muted hover:bg-surface-muted hover:text-ink"
+              className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               aria-label="Close"
             >
               <X size={18} />
             </button>
           </div>
-          <form onSubmit={save} className="px-5 py-4 space-y-3">
+          <form onSubmit={save} className="px-6 py-5 space-y-4">
             <Input label="Date" type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} required />
-            <Input label="Ref / Invoice No." value={form.ref} onChange={(e) => setForm({ ...form, ref: e.target.value })} />
-            <Input label="Party / Name" value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })} />
+            <Input label="Ref / Invoice No." value={form.ref} onChange={(e) => setForm({ ...form, ref: e.target.value })} placeholder="Optional" />
+            <Input label="Party / Name" value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })} placeholder="Optional" />
             <div className="grid grid-cols-2 gap-3">
-              <Input label={`Debit (${colLabels.debit})`} type="number" step="0.01" value={form.debit} onChange={(e) => setForm({ ...form, debit: e.target.value })} />
-              <Input label={`Credit (${colLabels.credit})`} type="number" step="0.01" value={form.credit} onChange={(e) => setForm({ ...form, credit: e.target.value })} />
+              <Input label={`Debit (${colLabels.debit})`} type="number" step="0.01" min="0" value={form.debit} onChange={(e) => setForm({ ...form, debit: e.target.value })} />
+              <Input label={`Credit (${colLabels.credit})`} type="number" step="0.01" min="0" value={form.credit} onChange={(e) => setForm({ ...form, credit: e.target.value })} />
             </div>
-            <Input label="Source" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} />
+            <Input label="Source" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="e.g. Sale, Purchase, Manual" />
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-muted">Notes</span>
+              <span className="text-xs font-semibold text-slate-500">Notes</span>
               <textarea
-                className="w-full rounded-xl border border-edge bg-surface-card px-3.5 py-2.5 text-sm text-ink outline-none ring-brand-400 placeholder:text-muted focus:border-brand-400 focus:ring-2"
-                rows={2}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 focus:bg-white transition-all"
+                rows={3}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Additional notes..."
               />
             </div>
-            {error && <p className="text-sm text-rose-500">{error}</p>}
-            <div className="flex justify-end gap-2">
+            {error && <p className="text-sm text-rose-500 flex items-center gap-1"><AlertCircle size={14} /> {error}</p>}
+            <div className="flex justify-end gap-2 pt-2">
               <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="px-6 py-2">
                 {saving ? "Saving..." : editing ? "Update" : "Save"}
               </Button>
             </div>

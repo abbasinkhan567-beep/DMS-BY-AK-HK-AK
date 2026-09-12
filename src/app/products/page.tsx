@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { MoreVertical, Pencil, Plus, Trash2, FileText } from "lucide-react";
+import { MoreVertical, Pencil, Plus, Trash2, FileText, AlertCircle } from "lucide-react";
 import { formatMoney } from "@/lib/utils";
 import {
   Button,
@@ -127,15 +127,15 @@ export default function ProductsPage() {
       {filtered.length === 0 ? (
         <EmptyState message="No products found. Add products first." />
       ) : (
-        <Card>
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100">
                   {["Product", "Size", "Purchase", "Sale", "Stock", "Status", "Action"].map((h) => (
                     <th
                       key={h}
-                      className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                      className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 sticky top-0 bg-white z-10"
                     >
                       {h}
                     </th>
@@ -146,10 +146,10 @@ export default function ProductsPage() {
                 {filtered.map((p) => {
                   const low = p.stock <= p.min_stock;
                   return (
-                    <tr key={p.id} className="border-b border-slate-50 last:border-0">
+                    <tr key={p.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">
+                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-sm font-bold text-brand-700">
                             {(p.name || "?").charAt(0)}
                           </span>
                           <span className="font-semibold text-slate-800">{p.name}</span>
@@ -157,8 +157,11 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-5 py-3.5 text-slate-600">{p.size}</td>
                       <td className="px-5 py-3.5 text-slate-600">{formatMoney(p.purchase_price)}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{formatMoney(p.sale_price)}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-800">{p.stock}</td>
+                      <td className="px-5 py-3.5 text-emerald-700 font-semibold">{formatMoney(p.sale_price)}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-800">
+                        <span className={low ? "text-amber-600" : ""}>{p.stock}</span>
+                        {low && <span className="ml-1 text-xs text-amber-500">⚠</span>}
+                      </td>
                       <td className="px-5 py-3.5">
                         <StatusPill tone={low ? "orange" : "green"}>
                           {low ? "Low stock" : "In stock"}
@@ -166,19 +169,20 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" onClick={() => openEdit(p)} className="!px-2 !py-1.5">
+                          <Button variant="ghost" onClick={() => openEdit(p)} className="!px-2 !py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
                             <Pencil size={15} />
                           </Button>
                           <Button
                             variant="ghost"
                             onClick={() => remove(p.id)}
-                            className="!px-2 !py-1.5 text-rose-500"
+                            className="!px-2 !py-1.5 text-rose-500 hover:bg-rose-50 transition-colors"
+                            title="Delete"
                           >
                             <Trash2 size={15} />
                           </Button>
-                          <span className="p-1.5 text-slate-300">
+                          <Button variant="ghost" className="!px-2 !py-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="More">
                             <MoreVertical size={15} />
-                          </span>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -191,7 +195,7 @@ export default function ProductsPage() {
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit Product" : "Add Product"}>
-        <form onSubmit={save} className="space-y-3">
+        <form onSubmit={save} className="space-y-4">
           <Input
             label="Name"
             required
@@ -252,12 +256,12 @@ export default function ProductsPage() {
               onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })}
             />
           </div>
-          {error && <p className="text-sm text-rose-500">{error}</p>}
+          {error && <p className="text-sm text-rose-500 flex items-center gap-1"><AlertCircle size={14} /> {error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" data-save disabled={saving}>
+            <Button type="submit" data-save disabled={saving} className="px-6 py-2">
               {saving ? "Saving..." : "Save"}
             </Button>
           </div>

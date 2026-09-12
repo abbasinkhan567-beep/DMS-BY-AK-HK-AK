@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { FileSpreadsheet, FileText, Pencil, Plus, Trash2, Calculator, Package, ArrowUpDown } from "lucide-react";
+import { FileSpreadsheet, FileText, Pencil, Plus, Trash2, Calculator, Package, ArrowUpDown, CreditCard } from "lucide-react";
 import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelSaleBill, printSaleBill } from "@/lib/bills";
 import {
@@ -707,30 +707,34 @@ export default function SalesPage() {
             />
           </div>
 
-          <div className="space-y-2">
+<div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Products (commission + discount har line pe)
               </p>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold">
-                <Calculator size={14} />
-                <span>Total Qty: <strong>{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong></span>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-sky-50 to-blue-50 text-sky-700 font-semibold border border-sky-100">
+                  <Calculator size={14} />
+                  <span>Total Qty: <strong>{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong></span>
+                </div>
               </div>
             </div>
-          </div>
-            {items.map((item, index) => (
+{items.map((item, index) => (
               <div
                 key={index}
-                className={`space-y-2 rounded-xl bg-slate-50 p-3 transition-all duration-200 ${focusedRow === index ? "ring-2 ring-brand-400/50 bg-brand-50/30" : ""}`}
+                className={`relative rounded-xl bg-white p-4 transition-all duration-300 border border-slate-100 hover:border-brand-200 hover:shadow-md ${focusedRow === index ? "ring-2 ring-brand-400/50 bg-brand-50/30 border-brand-300" : ""}`}
                 data-row={index}
               >
-                <div className="grid gap-2 sm:grid-cols-12">
-                  <div className="sm:col-span-2">
+                <div className="grid gap-3 sm:grid-cols-12">
+                  <div className="sm:col-span-3">
                     <Select
                       label="Product Name"
                       value={item.product_id || ""}
                       onChange={(e) => updateItem(index, { product_id: Number(e.target.value) })}
+                      onKeyDown={(e) => handleKeyDown(e, index, 0)}
+                      data-row={index}
+                      data-col={0}
+                      onFocus={() => { setFocusedRow(index); setFocusedCol(0); }}
                     >
                       <option value="">Select...</option>
                       {products.map((p) => (
@@ -829,7 +833,7 @@ export default function SalesPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-4 px-1 text-xs text-slate-600">
+                <div className="flex flex-wrap gap-4 px-1 text-xs text-slate-600 mt-3 pt-3 border-t border-slate-100">
                   <span>
                     Commission:{" "}
                     <strong className="text-brand-700">{formatMoney(item.commission)}</strong>
@@ -843,20 +847,20 @@ export default function SalesPage() {
             ))}
             <Button
               type="button"
-              variant="secondary"
-              className="!py-1.5 !text-xs"
+              variant="outline"
+              className="w-full py-2 text-sm font-medium hover:bg-brand-50 border-brand-300"
               onClick={() => setItems([...items, emptyLine()])}
             >
-              + Add Line
+              <Plus size={16} className="mr-1" /> Add Product Line
             </Button>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Returned Goods (Optional)
+          <div className="pt-4 border-t border-slate-100">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+              <Package size={14} /> Returned Goods (Optional)
             </p>
             {formReturns.map((r, index) => (
-              <div key={index} className="rounded-xl bg-slate-50 p-4 animate-slide-up stagger-1 border border-slate-100">
+              <div key={index} className="rounded-xl bg-white p-4 animate-slide-up stagger-1 border border-slate-100 hover:border-slate-200 transition-colors mb-3">
                 <div className="grid gap-3 sm:grid-cols-12">
                   <div className="sm:col-span-4">
                     <Select
@@ -946,42 +950,44 @@ export default function SalesPage() {
             ))}
             <Button
               type="button"
-              variant="secondary"
-              className="!py-1.5 !text-xs"
+              variant="outline"
+              className="w-full py-2 text-sm font-medium hover:bg-rose-50 border-rose-300"
               onClick={() => setFormReturns([...formReturns, { product_id: 0, qty: 0, rate: 0 }])}
             >
-              + Add Return
+              <Plus size={16} className="mr-1" /> Add Return Line
             </Button>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Bill Expenses
+          <div className="pt-4 border-t border-slate-100">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+              <CreditCard size={14} /> Bill Expenses
             </p>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               {[1, 2, 3].map((n) => (
-                <div key={n} className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3">
-                  <Input
-                    label={`Expense ${n} Name`}
-                    value={form[`expense${n}_label` as keyof typeof form] as string}
-                    onChange={(e) =>
-                      setForm({ ...form, [`expense${n}_label`]: e.target.value } as typeof form)
-                    }
-                    placeholder="e.g. Transport"
-                  />
-                  <Input
-                    label="Amount"
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={form[`expense${n}_amount` as keyof typeof form] as number}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        [`expense${n}_amount`]: Number(e.target.value),
-                      } as typeof form)
-                    }
-                  />
+                <div key={n} className="rounded-xl bg-white p-4 border border-slate-100 hover:border-slate-200 transition-colors">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label={`Expense ${n} Name`}
+                      value={form[`expense${n}_label` as keyof typeof form] as string}
+                      onChange={(e) =>
+                        setForm({ ...form, [`expense${n}_label`]: e.target.value } as typeof form)
+                      }
+                      placeholder="e.g. Transport"
+                    />
+                    <Input
+                      label="Amount"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={form[`expense${n}_amount` as keyof typeof form] as number}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          [`expense${n}_amount`]: Number(e.target.value),
+                        } as typeof form)
+                      }
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -991,43 +997,44 @@ export default function SalesPage() {
             label="Notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            placeholder="Add any additional notes..."
           />
 
-          <div className="grid gap-2 rounded-xl bg-brand-50 p-4 text-sm sm:grid-cols-2">
-            <div className="flex justify-between">
-              <span>Items Subtotal</span>
-              <strong>{formatMoney(itemsSubtotal)}</strong>
+          <div className="rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 p-5 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Items Subtotal</span>
+              <strong className="text-brand-800">{formatMoney(itemsSubtotal)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span>Total Commission</span>
-              <strong>{formatMoney(netCommission)}</strong>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Total Commission</span>
+              <strong className="text-brand-800">{formatMoney(netCommission)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span>Return Commission</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Return Commission</span>
               <strong className="text-rose-500">- {formatMoney(returnCommission)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span>Total Discount</span>
-              <strong>{formatMoney(totalDiscount)}</strong>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Total Discount</span>
+              <strong className="text-amber-600">{formatMoney(totalDiscount)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span>Bill Expense</span>
-              <strong>{formatMoney(billExpense)}</strong>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Bill Expense</span>
+              <strong className="text-slate-700">{formatMoney(billExpense)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span>Return Amount</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Return Amount</span>
               <strong className="text-rose-500">- {formatMoney(returnTotal)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span>Bill Balance Due</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Bill Balance Due</span>
               <strong className="text-amber-600">{formatMoney(bakaya)}</strong>
             </div>
-            <div className="flex justify-between text-base">
-              <span className="font-semibold">Bill Total (Net)</span>
-              <strong className="text-brand-700">{formatMoney(grandTotal)}</strong>
+            <div className="flex justify-between text-base pt-2 border-t border-brand-200">
+              <span className="font-semibold text-brand-800">Bill Total (Net)</span>
+              <strong className="text-xl text-brand-700">{formatMoney(grandTotal)}</strong>
             </div>
-            <div className="flex justify-between border-t border-brand-200 pt-2">
-              <span className="font-medium">Total Quantity</span>
+            <div className="flex justify-between text-sm pt-2 border-t border-brand-200">
+              <span className="font-medium text-sky-700">Total Quantity</span>
               <strong className="text-sky-700">{items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</strong>
             </div>
           </div>

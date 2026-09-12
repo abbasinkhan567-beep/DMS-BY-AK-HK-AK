@@ -129,15 +129,15 @@ export default function CustomersPage() {
       {filtered.length === 0 ? (
         <EmptyState message="No customers yet. Add your shops first." />
       ) : (
-        <Card>
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100">
                   {["Customer", "Shop", "Phone", "Area", "Balance", "Status", "Action"].map((h) => (
                     <th
                       key={h}
-                      className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                      className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 sticky top-0 bg-white z-10"
                     >
                       {h}
                     </th>
@@ -146,10 +146,10 @@ export default function CustomersPage() {
               </thead>
               <tbody>
                 {filtered.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-50 last:border-0">
+                  <tr key={c.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-sm font-bold text-brand-700">
                           {(c.name || "?").charAt(0)}
                         </span>
                         <span className="font-semibold text-slate-800">{c.name}</span>
@@ -159,7 +159,7 @@ export default function CustomersPage() {
                     <td className="px-5 py-3.5 text-slate-600">{c.phone || "-"}</td>
                     <td className="px-5 py-3.5 text-slate-600">{c.area || "-"}</td>
                     <td className="px-5 py-3.5 font-semibold text-slate-800">
-                      {formatMoney(c.balance)}
+                      <span className={c.balance > 0 ? "text-amber-600" : "text-emerald-600"}>{formatMoney(c.balance)}</span>
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusPill tone={c.balance > 0 ? "amber" : "green"}>
@@ -168,13 +168,14 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" onClick={() => openEdit(c)} className="!px-2 !py-1.5">
+                        <Button variant="ghost" onClick={() => openEdit(c)} className="!px-2 !py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
                           <Pencil size={15} />
                         </Button>
                         <Button
                           variant="ghost"
                           onClick={() => remove(c.id)}
-                          className="!px-2 !py-1.5 text-rose-500"
+                          className="!px-2 !py-1.5 text-rose-500 hover:bg-rose-50 transition-colors"
+                          title="Delete"
                         >
                           <Trash2 size={15} />
                         </Button>
@@ -189,38 +190,44 @@ export default function CustomersPage() {
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit Customer" : "Add Customer"}>
-        <form onSubmit={save} className="space-y-3">
+        <form onSubmit={save} className="space-y-4">
           <Input
             label="Customer Name"
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Customer name"
           />
           <Input
             label="Shop Name"
             value={form.shop_name}
             onChange={(e) => setForm({ ...form, shop_name: e.target.value })}
+            placeholder="Shop name"
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Phone"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="Phone number"
             />
             <Input
               label="Area"
               value={form.area}
               onChange={(e) => setForm({ ...form, area: e.target.value })}
+              placeholder="Area/Route"
             />
           </div>
           <Input
             label="Address"
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
+            placeholder="Full address"
           />
           <Input
             label="Opening Balance (pending)"
             type="number"
+            step="any"
             value={form.balance}
             onChange={(e) => setForm({ ...form, balance: Number(e.target.value) })}
           />
@@ -228,12 +235,13 @@ export default function CustomersPage() {
             label="Notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            placeholder="Additional notes..."
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" data-save disabled={saving}>
+            <Button type="submit" data-save disabled={saving} className="px-6 py-2">
               {saving ? "Saving..." : "Save"}
             </Button>
           </div>

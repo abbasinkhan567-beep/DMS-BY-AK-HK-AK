@@ -1,6 +1,6 @@
 {
-    "version":  "10.4.2",
+    "version":  "10.5.0",
     "name":  "Pepsi Distribution",
-    "notes":  "v10.4.2: Professional UI polish - fixed return lines spacing, added keyboard navigation to return lines, improved animations, better form field spacing, professional card/table/modal styling. All fields editable. Times New Roman font. Glassmorphism design.",
+    "notes":  "v10.5.0: Major UI overhaul - Professional modern design with Times New Roman font. Complete redesign of Sales, Purchases, Stockbook, Ledgers, Products, Customers pages. Added: keyboard navigation (Enter/Arrow/Escape) for all form fields, hover effects, smooth animations (slideUp, fadeIn, scaleIn), glassmorphism cards, gradient headers, professional tables with sticky headers, improved modals, return lines with proper spacing and keyboard nav. All fields fully editable. Auto stock updates. Print functionality on all modules.",
     "updatedAt":  "2026-09-12"
 }

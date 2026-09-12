@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { FileSpreadsheet, FileText, Pencil, Plus, Trash2, Calculator, Package, ArrowUpDown } from "lucide-react";
+import { FileSpreadsheet, FileText, Pencil, Plus, Trash2, Calculator, Package, ArrowUpDown, CreditCard } from "lucide-react";
 import { formatMoney, formatDate, todayLocal } from "@/lib/utils";
 import { excelPurchaseBill, printPurchaseBill } from "@/lib/bills";
 import {
@@ -566,10 +566,10 @@ export default function PurchasesPage() {
             {items.map((item, index) => (
               <div
                 key={index}
-                className={`space-y-2 rounded-xl bg-slate-50 p-3 transition-all duration-200 ${focusedRow === index ? "ring-2 ring-brand-400/50 bg-brand-50/30" : ""}`}
+                className={`relative rounded-xl bg-white p-4 transition-all duration-300 border border-slate-100 hover:border-brand-200 hover:shadow-md ${focusedRow === index ? "ring-2 ring-brand-400/50 bg-brand-50/30 border-brand-300" : ""}`}
                 data-row={index}
               >
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Select
                     label="Product Name"
                     value={item.product_id || ""}
@@ -605,7 +605,7 @@ export default function PurchasesPage() {
                     onFocus={() => { setFocusedRow(index); setFocusedCol(2); }}
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-5">
+                <div className="grid gap-3 sm:grid-cols-5">
                   <Input
                     label="Total Qty"
                     type="number"
@@ -683,20 +683,20 @@ export default function PurchasesPage() {
             ))}
             <Button
               type="button"
-              variant="secondary"
-              className="!py-1.5 !text-xs"
+              variant="outline"
+              className="w-full py-2 text-sm font-medium hover:bg-brand-50 border-brand-300"
               onClick={() => setItems([...items, { ...emptyLine(), company_name: form.company_name }])}
             >
-              + Add Line
+              <Plus size={16} className="mr-1" /> Add Product Line
             </Button>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Returned Goods (Optional)
+          <div className="pt-4 border-t border-slate-100">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+              <Package size={14} /> Returned Goods (Optional)
             </p>
             {formReturns.map((r, index) => (
-              <div key={index} className="rounded-xl bg-slate-50 p-4 animate-slide-up stagger-1 border border-slate-100">
+              <div key={index} className="rounded-xl bg-white p-4 animate-slide-up stagger-1 border border-slate-100 hover:border-slate-200 transition-colors mb-3">
                 <div className="grid gap-3 sm:grid-cols-12">
                   <div className="sm:col-span-4">
                     <Select
@@ -788,11 +788,11 @@ export default function PurchasesPage() {
             ))}
             <Button
               type="button"
-              variant="secondary"
-              className="!py-1.5 !text-xs"
+              variant="outline"
+              className="w-full py-2 text-sm font-medium hover:bg-rose-50 border-rose-300"
               onClick={() => setFormReturns([...formReturns, { product_id: 0, qty: 0, rate: 0 }])}
             >
-              + Add Return
+              <Plus size={16} className="mr-1" /> Add Return Line
             </Button>
           </div>
 
@@ -800,13 +800,14 @@ export default function PurchasesPage() {
             label="Notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            placeholder="Add any additional notes..."
           />
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Purchase Expenses
+          <div className="pt-4 border-t border-slate-100">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+              <CreditCard size={14} /> Purchase Expenses
             </p>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               {[1, 2, 3].map((n) => (
                 <div key={n} className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3">
                   <Input
