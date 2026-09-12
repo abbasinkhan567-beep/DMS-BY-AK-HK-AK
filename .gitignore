@@ -15,3 +15,4 @@ tsconfig.tsbuildinfo
 .setup-done
 data/server-pid.txt
 data/.auth-secret
+data/.sync.lock
