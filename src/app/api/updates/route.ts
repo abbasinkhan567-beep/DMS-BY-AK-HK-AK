@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { DEFAULT_GITHUB_REPO } from "@/lib/repo";
 import { injectGitHubToken, isValidGitHubRepoUrl, normalizeGitHubRepoUrl } from "@/lib/github-url";
+import { getSyncToken } from "@/lib/sync";
 
 function readVersion() {
   try {
@@ -99,7 +100,9 @@ export async function GET() {
   try {
     const rawRemote = run("git remote get-url origin").trim();
     const remoteUrl = normalizeGitHubRepoUrl(rawRemote);
-    const token = typeof process.env.GITHUB_TOKEN === "string" ? process.env.GITHUB_TOKEN : "";
+    const token =
+      getSyncToken() ||
+      (typeof process.env.GITHUB_TOKEN === "string" ? process.env.GITHUB_TOKEN : "");
     info.remoteUrl = remoteUrl;
     run(`git fetch ${injectGitHubToken(remoteUrl, token) || remoteUrl} main`);
     let localHash = "";
@@ -174,7 +177,12 @@ export async function POST(req: NextRequest) {
       hasHead = false;
     }
     if (hasHead) {
-      log += "\n" + run("git fetch origin main");
+      const token =
+        getSyncToken() ||
+        (typeof process.env.GITHUB_TOKEN === "string" ? process.env.GITHUB_TOKEN : "");
+      const remoteUrl = normalizeGitHubRepoUrl(run("git remote get-url origin").trim());
+      const authenticatedRemote = injectGitHubToken(remoteUrl, token) || remoteUrl;
+      log += "\n" + run(`git fetch "${authenticatedRemote}" main`);
       // reset --hard (not checkout/stash): npm 12 rewrites package-lock.json during
       // installs, which leaves it dirty and makes `git checkout` abort with "local
       // changes would be overwritten" - keeping the PC stuck on the old version.
