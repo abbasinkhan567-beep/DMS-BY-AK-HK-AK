@@ -74,8 +74,9 @@ export function injectGitHubToken(url: string, token: string): string {
       if (parsed.hostname.toLowerCase() !== "github.com" && parsed.hostname.toLowerCase() !== "www.github.com") {
         return value;
       }
-      parsed.username = token;
-      parsed.password = "";
+      // GitHub accepts personal access tokens as the HTTPS password.
+      parsed.username = "x-access-token";
+      parsed.password = token;
       return parsed.toString();
     } catch {
       return value;

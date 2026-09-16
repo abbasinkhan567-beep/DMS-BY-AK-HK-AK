@@ -18,7 +18,7 @@ test("rejects invalid non-GitHub URLs", () => {
 });
 
 test("injects tokens into GitHub remotes for SSH and HTTPS URLs", () => {
-  assert.equal(injectGitHubToken("git@github.com:owner/repo.git", "abc123"), "https://abc123@github.com/owner/repo.git");
-  assert.equal(injectGitHubToken("https://github.com/owner/repo.git", "abc123"), "https://abc123@github.com/owner/repo.git");
+  assert.equal(injectGitHubToken("git@github.com:owner/repo.git", "abc123"), "https://x-access-token:abc123@github.com/owner/repo.git");
+  assert.equal(injectGitHubToken("https://github.com/owner/repo.git", "abc123"), "https://x-access-token:abc123@github.com/owner/repo.git");
   assert.equal(injectGitHubToken("https://example.com/owner/repo", "abc123"), "https://example.com/owner/repo");
 });
