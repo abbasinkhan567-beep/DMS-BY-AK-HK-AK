@@ -29,14 +29,19 @@ export function AutoBackupRunner() {
         const slot = String(Math.floor(Date.now() / (2 * 60 * 1000)));
         const last = sessionStorage.getItem(syncKey);
         if (last === slot) return;
-        sessionStorage.setItem(syncKey, slot);
-        await fetch("/api/sync", {
+        const response = await fetch("/api/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "auto" }),
         });
+        const result = (await response.json().catch(() => null)) as
+          | { ok?: boolean; skipped?: boolean }
+          | null;
+        if (response.ok && result?.ok !== false) {
+          sessionStorage.setItem(syncKey, slot);
+        }
       } catch {
-        /* offline / ignore */
+        // Retry on the next interval if the server or GitHub is unavailable.
       }
     }
 
