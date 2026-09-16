@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import crypto from "crypto";
 import { execSync } from "child_process";
 import { dbPath, getDb, resetDbConnection } from "@/lib/db";
@@ -153,10 +154,9 @@ function localMeta(): SyncMeta {
 }
 
 function tmpDir() {
-  const dir = path.join(process.cwd(), ".pepsi-cloud-sync");
-  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+  // Mapped/network drives can reject deleting a previous Git working tree.
+  // Use a unique local temp directory instead of reusing one under the app.
+  return fs.mkdtempSync(path.join(os.tmpdir(), "pepsi-cloud-sync-"));
 }
 
 function remoteBranchExists(origin: string): boolean {
