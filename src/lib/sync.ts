@@ -217,8 +217,9 @@ function pushLocalDb(origin: string, meta: SyncMeta): void {
 }
 
 function withSyncLock<T>(fn: () => T): T {
-  const lockFd = fs.openSync(SYNC_LOCK, "wx");
+  let lockFd: number;
   try {
+    lockFd = fs.openSync(SYNC_LOCK, "wx");
     fs.writeSync(lockFd, String(Date.now()));
     fs.closeSync(lockFd);
     try {
