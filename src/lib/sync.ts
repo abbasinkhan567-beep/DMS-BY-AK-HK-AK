@@ -212,7 +212,18 @@ function pushLocalDb(origin: string, meta: SyncMeta): void {
   run('git config user.name "Pepsi Sync"', dir);
   run("git add pepsi.db meta.json", dir);
   run('git commit -m "data sync"', dir);
-  run(`git push -f origin ${SYNC_BRANCH}`, dir);
+  let expectedRemoteHead = "";
+  try {
+    expectedRemoteHead = run(`git ls-remote origin refs/heads/${SYNC_BRANCH}`, dir)
+      .trim()
+      .split(/\s+/)[0] || "";
+  } catch {
+    expectedRemoteHead = "";
+  }
+  run(
+    `git push --force-with-lease=refs/heads/${SYNC_BRANCH}:${expectedRemoteHead} origin ${SYNC_BRANCH}`,
+    dir
+  );
   reopenDb();
 }
 

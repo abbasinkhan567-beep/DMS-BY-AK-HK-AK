@@ -27,7 +27,11 @@ START.bat
 
 ## Features
 
-Dashboard, Products, Purchases, Sales, Customers, Salesmen, Paper/Old Records, Expenses, Ledgers, Accounts, Manual Backup, Stock Adjustment, **Merge Sync** (both PCs share data via GitHub), Updates via GitHub.
+Dashboard, Products, Purchases, Sales, Customers, Salesmen, Paper/Old Records, Expenses, Ledgers, Accounts, Manual Backup, Stock Adjustment, **Safe Merge Sync** (both PCs share data via GitHub without replacing each other's entries), Updates via GitHub.
+
+### Two-PC data sync
+
+Use separate PC names such as `Home` and `Office` in Settings → Sync. After entering data on either PC, click **Sync Now** while online; the app merges rows from both PCs by sync ID. Automatic sync also runs about every two minutes. If both PCs sync at exactly the same time, GitHub lease protection prevents one upload from overwriting the other—run Sync Now again to merge the latest data.
 
 ## Tech
 
